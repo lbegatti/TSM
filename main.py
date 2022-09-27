@@ -1,10 +1,16 @@
+import numpy as np
 import pandas as pd
 
 # classes
 from datamanipulation import dataManipulation
-from helpers import plotYield
+from helpers import plotYield, BEIrates
 from statTests import statTest
 from yieldMaturitySelector import yieldMatSelector
+from sklearn.decomposition import PCA
+import math
+import plotly.express as px
+import plotly.graph_objects as go
+from pcaAnalysis import factorAnalysis
 
 # instantiate classes
 yieldselector = yieldMatSelector()
@@ -18,6 +24,7 @@ real_yields = pd.read_excel('real_yields.xlsx').dropna()
 # select specific maturities
 nominal_yields_2_10y_eom = yieldselector.adjustYieldSerie(df=nominal_yields, yieldtype='nominal', FD=False)
 real_yields_2_10y_eom = yieldselector.adjustYieldSerie(df=real_yields, yieldtype='real', FD=False)
+
 # plot nominal data
 plotYield(nominal_yields_2_10y_eom, columns=['SVENY02', 'SVENY03', 'SVENY05', 'SVENY07', 'SVENY10'],
           yieldtype='Nominal', FD=False).show()
@@ -51,13 +58,13 @@ plotYield(nominal_yields_2_10y_eom_FD, columns=['SVENY02', 'SVENY03', 'SVENY05',
           yieldtype='Nominal', FD=True).show()
 
 # check for stationarity in real yields
-real2y_yieldADF_FD = stattest.ADFtest(real_yields_2_10y_eom, yieldtype='real', maturity='2y')
+real2y_yieldADF = stattest.ADFtest(real_yields_2_10y_eom, yieldtype='real', maturity='2y')
 
 # let's try with 5y
-real5y_yieldADF_FD = stattest.ADFtest(real_yields_2_10y_eom, yieldtype='real', maturity='5y')
+real5y_yieldADF = stattest.ADFtest(real_yields_2_10y_eom, yieldtype='real', maturity='5y')
 
 # let's try with 10y
-real10y_yieldADF_FD = stattest.ADFtest(real_yields_2_10y_eom, yieldtype='real', maturity='10y')
+real10y_yieldADF = stattest.ADFtest(real_yields_2_10y_eom, yieldtype='real', maturity='10y')
 
 # real yields are non-stationary, so we re-take the original data, apply first difference and then take only the
 # month end
@@ -73,4 +80,11 @@ plotYield(real_yields_2_10y_eom_FD, columns=['TIPSY02', 'TIPSY03', 'TIPSY05', 'T
 # Now we have done all the preliminary analysis entailing first differencing the data to ensure stationarity.
 # At this point, we can start with the principal components analysis (PCA) using the stationary data.
 
-# PCA
+# Q2 - PCA
+nominalYieldPCA = factorAnalysis(nominal_yields_2_10y_eom_FD, yieldtype='nominal').pcAnalysis()
+realYieldPCA = factorAnalysis(real_yields_2_10y_eom_FD, yieldtype='real').pcAnalysis()
+# using or not FD dfs does not change the results
+
+
+## Q 3 - calculate and plot the BEI rates
+BEI = BEIrates(nominal_yields_2_10y_eom, real_yields_2_10y_eom)
