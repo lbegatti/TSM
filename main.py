@@ -1,19 +1,23 @@
+#Packages
+from ast import Lambda
 import numpy as np
 import pandas as pd
+import kaleido
+import math
+import plotly.express as px
+import plotly.graph_objects as go
+from sklearn.decomposition import PCA
 
 # classes
 from datamanipulation import dataManipulation
 from helpers import plotYield, BEIrates
 from statTests import statTest
 from yieldMaturitySelector import yieldMatSelector
-from sklearn.decomposition import PCA
-import math
-import plotly.express as px
-import plotly.graph_objects as go
 from pcaAnalysis import factorAnalysis
-import kaleido
+from nelsonSiegel import NelsonSiegel
 
 # Q1 - EDA
+print('===============Q1===============')
 # instantiate classes
 yieldselector = yieldMatSelector()
 stattest = statTest()
@@ -84,11 +88,25 @@ plotYield(real_yields_2_10y_eom_FD, columns=['TIPSY02', 'TIPSY03', 'TIPSY05', 'T
 
 
 # Q2 - PCA
+print('===============Q2===============')
 nominalYieldPCA = factorAnalysis(nominal_yields_2_10y_eom_FD, yieldtype='nominal').pcAnalysis().write_image('Output/Nominal Yield Principal Components.png')
 realYieldPCA = factorAnalysis(real_yields_2_10y_eom_FD, yieldtype='real').pcAnalysis().write_image('Output/Real Yield Principal Components.png')
 # using or not FD dfs does not change the results
 
 # Q3 - calculate and plot the BEI rates
+print('===============Q3===============')
 BEI = BEIrates(nominal_yields_2_10y_eom, real_yields_2_10y_eom)
 
 # Q4 - Derive A(tau) and B(tau)
+print('===============Q4===============')
+#Purely theoretical
+
+# Q5 - Calculate Yield
+print('===============Q5===============')
+Lambda=0.5
+sigmaL=0.005
+sigmaS=0.01
+Xt=np.array([0.2,-0.2])
+NelsonSiegel=NelsonSiegel(Lambda, sigmaL, sigmaS, Xt)
+tau=[1, 5, 10]
+print(NelsonSiegel.getYields(tau))
