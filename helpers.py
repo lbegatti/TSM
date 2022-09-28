@@ -27,6 +27,6 @@ def BEIrates(nominal_df: pd.DataFrame, real_df: pd.DataFrame) -> pd.DataFrame:
     BEI['5Y'] = nominal_df.SVENY05 - real_df.TIPSY05
     BEI['10Y'] = nominal_df.SVENY10 - real_df.TIPSY10
     # hardcoded columns but I think it is fine since we will use it only once.
-    px.line(BEI, x='Date', y=['2Y', '5Y', '10Y'], title='BEI rates, nominal - real yields').update_layout(
-        xaxis_title='Date', yaxis_title='BEI Rates').show()
+    px.line(BEI, x='Date', y=['2Y', '5Y', '10Y'], title='BEI Rates, Nominal-Real Yields').update_layout(
+        xaxis_title='Date', yaxis_title='BEI Rates').write_image('Output/BEI Rates, Nominal-Real Yields.png')
     return BEI

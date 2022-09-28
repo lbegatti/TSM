@@ -11,7 +11,9 @@ import math
 import plotly.express as px
 import plotly.graph_objects as go
 from pcaAnalysis import factorAnalysis
+import kaleido
 
+# Q1 - EDA
 # instantiate classes
 yieldselector = yieldMatSelector()
 stattest = statTest()
@@ -27,10 +29,10 @@ real_yields_2_10y_eom = yieldselector.adjustYieldSerie(df=real_yields, yieldtype
 
 # plot nominal data
 plotYield(nominal_yields_2_10y_eom, columns=['SVENY02', 'SVENY03', 'SVENY05', 'SVENY07', 'SVENY10'],
-          yieldtype='Nominal', FD=False).show()
+          yieldtype='Nominal', FD=False).write_image('Output/Nominal Yields.png')
 # plot real yield data (TIPS)
 plotYield(real_yields_2_10y_eom, columns=['TIPSY02', 'TIPSY03', 'TIPSY05', 'TIPSY07', 'TIPSY10'],
-          yieldtype='Real', FD=False).show()
+          yieldtype='Real', FD=False).write_image('Output/Real Yields.png')
 
 # We have extracted and plotted the data, but before proceeding with PCA, it is usually well-practice to
 # ensure stationarity of the data under consideration. From the figures of nominal and real yields respectively,
@@ -55,7 +57,7 @@ nominal2y_yieldADF_FD = stattest.ADFtest(nominal_yields_2_10y_eom_FD, yieldtype=
 
 # let's plot the nominal yields stationary data
 plotYield(nominal_yields_2_10y_eom_FD, columns=['SVENY02', 'SVENY03', 'SVENY05', 'SVENY07', 'SVENY10'],
-          yieldtype='Nominal', FD=True).show()
+          yieldtype='Nominal', FD=True).write_image('Output/Stationary Nominal Yield.png')
 
 # check for stationarity in real yields
 real2y_yieldADF = stattest.ADFtest(real_yields_2_10y_eom, yieldtype='real', maturity='2y')
@@ -75,16 +77,18 @@ real2y_yieldADF_FD = stattest.ADFtest(real_yields_2_10y_eom_FD, yieldtype='real'
 
 # let's plot the nominal yields stationary data
 plotYield(real_yields_2_10y_eom_FD, columns=['TIPSY02', 'TIPSY03', 'TIPSY05', 'TIPSY07', 'TIPSY10'], yieldtype='Real',
-          FD=True).show()
+          FD=True)
 
 # Now we have done all the preliminary analysis entailing first differencing the data to ensure stationarity.
 # At this point, we can start with the principal components analysis (PCA) using the stationary data.
 
+
 # Q2 - PCA
-nominalYieldPCA = factorAnalysis(nominal_yields_2_10y_eom_FD, yieldtype='nominal').pcAnalysis()
-realYieldPCA = factorAnalysis(real_yields_2_10y_eom_FD, yieldtype='real').pcAnalysis()
+nominalYieldPCA = factorAnalysis(nominal_yields_2_10y_eom_FD, yieldtype='nominal').pcAnalysis().write_image('Output/Nominal Yield Principal Components.png')
+realYieldPCA = factorAnalysis(real_yields_2_10y_eom_FD, yieldtype='real').pcAnalysis().write_image('Output/Real Yield Principal Components.png')
 # using or not FD dfs does not change the results
 
-
-## Q 3 - calculate and plot the BEI rates
+# Q3 - calculate and plot the BEI rates
 BEI = BEIrates(nominal_yields_2_10y_eom, real_yields_2_10y_eom)
+
+# Q4 - Derive A(tau) and B(tau)

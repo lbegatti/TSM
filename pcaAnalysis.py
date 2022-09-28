@@ -41,13 +41,12 @@ class factorAnalysis:
                                  line_shape='spline'))
 
         if self.yieldtype == 'nominal':
-            fig.update_layout(title='Nominal Yield Principal components',
+            fig.update_layout(title='Nominal Yield Principal Components',
                               xaxis_title='Maturities',
                               yaxis_title='Loadings')
         else:
-            fig.update_layout(title='Real Yield Principal components',
+            fig.update_layout(title='Real Yield Principal Components',
                               xaxis_title='Maturities',
                               yaxis_title='Loadings')
 
-        fig.show()
         return fig

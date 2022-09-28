@@ -1,0 +1,10 @@
+pandas
+numpy
+statsmodels
+plotly
+chart_studio
+openpyxl
+nbformat
+sklearn
+importlib
+kaleido
