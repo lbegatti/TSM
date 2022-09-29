@@ -13,13 +13,15 @@ class NelsonSiegel:
         self.sigmaS=sigmaS
     
     def A(self, tau)->float:
-        return self.sigmaS/(4*np.power(self.Lambda,3))*(2*tau*self.Lambda-3+4*np.exp(-tau*self.Lambda)-np.exp(-2*tau*self.Lambda))
-    
+        #return np.square(self.sigmaL)*np.power(tau,3)/6+np.square(self.sigmaS)/(4*np.power(self.Lambda,3))*(2*tau*self.Lambda-3+4*np.exp(-tau*self.Lambda)-np.exp(-2*tau*self.Lambda))
+        bracket=2*self.Lambda*tau+4*np.exp(-self.Lambda*tau)-4*np.exp(-2*self.Lambda*tau)
+        return np.square(self.sigmaL)*np.power(tau,3)/6+np.square(self.sigmaS)/(4*np.power(self.Lambda,3))*bracket
+
     def B(self, tau)->np.array:
-        return np.array([0,(np.exp(-self.Lambda*tau)-1)/self.Lambda])
+        return np.array([tau,(np.exp(-self.Lambda*tau)-1)/self.Lambda])
     
     def getYields(self, tau:list):
-        return [(t, -self.A(t)/t-np.dot(self.B(t)/t,self.Xt)) for t in tau]
+        return [(t, -self.A(t)/t-np.dot(self.B(t),self.Xt)/t) for t in tau]
 
 
 
