@@ -106,7 +106,7 @@ print('===============Q5===============')
 Lambda=0.5
 sigmaL=0.005
 sigmaS=0.01
-Xt=np.array([0.2,-0.2])
+Xt=np.array([0.02,-0.02])
 NelsonSiegel=NelsonSiegel(Lambda, sigmaL, sigmaS, Xt)
 tau=[1, 5, 10]
 print(NelsonSiegel.getYields(tau))
