@@ -1,4 +1,4 @@
-#Packages
+# Packages
 from ast import Lambda
 import numpy as np
 import pandas as pd
@@ -15,6 +15,7 @@ from statTests import statTest
 from yieldMaturitySelector import yieldMatSelector
 from pcaAnalysis import factorAnalysis
 from nelsonSiegel import NelsonSiegel
+from kalmanfilter import KalmanFilter
 
 # Q1 - EDA
 print('===============Q1===============')
@@ -89,8 +90,10 @@ plotYield(real_yields_2_10y_eom_FD, columns=['TIPSY02', 'TIPSY03', 'TIPSY05', 'T
 
 # Q2 - PCA
 print('===============Q2===============')
-nominalYieldPCA = factorAnalysis(nominal_yields_2_10y_eom_FD, yieldtype='nominal').pcAnalysis().write_image('Output/Nominal Yield Principal Components.png')
-realYieldPCA = factorAnalysis(real_yields_2_10y_eom_FD, yieldtype='real').pcAnalysis().write_image('Output/Real Yield Principal Components.png')
+nominalYieldPCA = factorAnalysis(nominal_yields_2_10y_eom_FD, yieldtype='nominal').pcAnalysis().write_image(
+    'Output/Nominal Yield Principal Components.png')
+realYieldPCA = factorAnalysis(real_yields_2_10y_eom_FD, yieldtype='real').pcAnalysis().write_image(
+    'Output/Real Yield Principal Components.png')
 # using or not FD dfs does not change the results
 
 # Q3 - calculate and plot the BEI rates
@@ -99,14 +102,16 @@ BEI = BEIrates(nominal_yields_2_10y_eom, real_yields_2_10y_eom)
 
 # Q4 - Derive A(tau) and B(tau)
 print('===============Q4===============')
-#Purely theoretical
+# Purely theoretical
 
 # Q5 - Calculate Yield
 print('===============Q5===============')
-Lambda=0.5
-sigmaL=0.005
-sigmaS=0.01
-Xt=np.array([0.02,-0.02])
-NelsonSiegel=NelsonSiegel(Lambda, sigmaL, sigmaS, Xt)
-tau=[1, 5, 10]
-print(NelsonSiegel.getYields(tau))
+nelsonsiegel = NelsonSiegel(Lambda=0.5, sigmaL=0.005, sigmaS=0.01, Xt=np.array([0.02, -0.02]), tauList=[1, 5, 10])
+print(nelsonsiegel.getYields())
+
+# Q6-Q10
+print('===============Q6-Q10===============')
+# Purely theoretical
+
+# Q11 - Kalman filter
+#kalmanfilter = KalmanFilter(Lambda=nelsonsiegel.Lambda, sigmaL=nelsonsiegel.sigmaL, sigmaS=nelsonsiegel.sigmaS,tauList=nelsonsiegel.tauList)
