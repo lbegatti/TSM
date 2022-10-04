@@ -114,4 +114,4 @@ print('===============Q6-Q10===============')
 # Purely theoretical
 
 # Q11 - Kalman filter
-#kalmanfilter = KalmanFilter(Lambda=nelsonsiegel.Lambda, sigmaL=nelsonsiegel.sigmaL, sigmaS=nelsonsiegel.sigmaS,tauList=nelsonsiegel.tauList)
+#kalmanfilter = KalmanFilter()
