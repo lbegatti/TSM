@@ -1,5 +1,6 @@
 from array import array
 import numpy as np
+from pandas._libs.hashtable import Vector
 
 
 class NelsonSiegel:
@@ -7,7 +8,7 @@ class NelsonSiegel:
     Class for Nelson Siegel Calculated in question 4
     """
 
-    def __init__(self, Lambda: float, sigmaL: float, sigmaS: float, Xt: np.array, tauList: list) -> None:
+    def __init__(self, Lambda: float or np.array, sigmaL: float or np.array, sigmaS: float, Xt: np.array or None, tauList: list) -> None:
         self.Xt = Xt
         self.Lambda = Lambda  # Lambda with cap since lambda is reserved
         self.sigmaL = sigmaL

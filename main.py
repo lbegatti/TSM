@@ -1,21 +1,17 @@
 # Packages
-from ast import Lambda
+
 import numpy as np
 import pandas as pd
-import kaleido
-import math
-import plotly.express as px
-import plotly.graph_objects as go
-from sklearn.decomposition import PCA
+from scipy import optimize
 
 # classes
 from datamanipulation import dataManipulation
 from helpers import plotYield, BEIrates
+from kalmanfilter import KalmanFilter
+from nelsonSiegel import NelsonSiegel
+from pcaAnalysis import factorAnalysis
 from statTests import statTest
 from yieldMaturitySelector import yieldMatSelector
-from pcaAnalysis import factorAnalysis
-from nelsonSiegel import NelsonSiegel
-from kalmanfilter import KalmanFilter
 
 # Q1 - EDA
 print('===============Q1===============')
@@ -114,4 +110,92 @@ print('===============Q6-Q10===============')
 # Purely theoretical
 
 # Q11 - Kalman filter
-#kalmanfilter = KalmanFilter()
+
+## parameters initialization
+parameters = [
+    0.5,  # LambdaN
+    0.5,  # LambdaR
+    0.02,  # sigma_NL
+    0.03,  # sigma_NS
+    0.01,  # sigma_RL
+    0.04,  # sigma_RS
+    0.01,  # sigma_err_sq
+    0,  # initial value log-likelihood
+    0,  # unconditional mean
+]
+
+LambdaN = parameters[0]
+LambdaR = parameters[1]
+sigma_NL = np.abs(parameters[2])
+sigma_NS = abs(parameters[3])
+sigma_RL = abs(parameters[4])
+sigma_RS = abs(parameters[5])
+sigma_err_sq = parameters[6] ** 2
+likelihood_initialization = 0  # initial value of log likelihood
+x0 = parameters[8]  # x0 or uncoditional mean theta
+
+k = np.zeros(shape=(4, 4))
+k[1, 1] = LambdaN
+k[3, 3] = LambdaR
+theta = np.zeros(shape=4).T
+H = np.diag([sigma_err_sq for i in range(10)])
+pi = np.pi
+T = 150
+N = 5
+yieldNR = nominal_yields_2_10y_eom.merge(real_yields_2_10y_eom, on='Date').T
+
+# stack together lambdas
+Lambdas = np.array([LambdaN, LambdaR])
+sigmaLs = np.array([sigma_NL, sigma_RL])
+sigmaSs = np.array([sigma_NS, sigma_RS])
+sigmas = np.array([sigma_NL, sigma_NS, sigma_RL, sigma_RS])
+
+# initialization of the KF class...
+kalmanfilter = KalmanFilter(k=k, x0=x0,
+                            theta=theta, sigma=sigmas, start=1, end=T, pi=pi, N=N, idMatrix=np.ones(shape=(4, 4)),
+                            observedYields=yieldNR[1:], H=H)
+
+
+def maxLikelihood(LH):
+    likelihood = LH
+    for obs in range(0, len(kalmanfilter.observedYields.columns)):
+
+        # prediction step
+        kalmanfilter.predictionStepMoments()
+
+        # model implied yields
+        kalmanfilter.measEq(t=obs)
+
+        # prefit residuals
+        kalmanfilter.residuals(t=obs)
+
+        # covariance matrix of prefit residuals
+        S = kalmanfilter.St(t=obs)
+
+        # calculate the det of S
+        detS = np.linalg.det(kalmanfilter.St(t=obs))
+        if detS > 0:
+            # log determinant
+            np.log(detS)
+        else:
+            print('Determinant is not-positive.')
+
+        # inverse of cov matrix S
+        S ** (-1)
+
+        # updated step
+        kalmanfilter.updateStepMoments()
+
+        # log likelihood for each obs step
+        ith_loglikelihood = kalmanfilter.logLikelihood()
+        likelihood += ith_loglikelihood
+
+    return -likelihood
+
+
+def optLikelihood(method: str):
+    return optimize.minimize(fun=lambda LH: maxLikelihood(LH), x0=np.array([likelihood_initialization, 10.0]),
+                             method=method)
+
+
+MLH = optLikelihood('nelder-mead')
