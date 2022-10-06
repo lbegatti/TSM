@@ -1,115 +1,212 @@
-from typing import Any
-
 from nelsonSiegel import NelsonSiegel
+import pandas as pd
 import numpy as np
-from random import gauss
+from scipy import optimize
 
 
 class KalmanFilter(NelsonSiegel):
-    """
-    Kalman Filter class
-        - state transition equation
-        - measurement equation
-        - conditional / unconditional variance
-        - residual variance
-        - prediction step moments
-        - updated step
-    """
+    def __init__(self, parameters, observedyield: pd.DataFrame, obs: int, timestep: float):
+        self.gainMatrix = None
+        self.Sinv = None
+        self.ith_loglikelihood = None
+        self.Pt = None
+        self.detS = None
+        self.S = None
+        self.res = None
+        self.yt = None
+        self.Pt_1 = None
+        self.Xt_1 = None
+        self.uncMean = None
+        self.unconVar = None
+        self.condVar = None
+        self.Ct = None
+        self.Ft = None
+        self.Theta = None
+        self.eigvecK = None
+        self.eigvalK = None
+        self.A = None
+        self.Bmatrix = None
+        self.H = None
+        self.Sigma = None
+        self.K = None
+        self.sigma_err_sq = None
+        self.lambda_R = None
+        self.lambda_N = None
+        self.sigma_RS = None
+        self.sigma_RL = None
+        self.sigma_NS = None
+        self.sigma_NL = None
+        self.theta4 = None
+        self.theta3 = None
+        self.theta2 = None
+        self.theta1 = None
+        self.kappa44 = None
+        self.kappa43 = None
+        self.kappa42 = None
+        self.kappa41 = None
+        self.kappa34 = None
+        self.kappa33 = None
+        self.kappa32 = None
+        self.kappa31 = None
+        self.kappa24 = None
+        self.kappa23 = None
+        self.kappa22 = None
+        self.kappa21 = None
+        self.kappa14 = None
+        self.kappa13 = None
+        self.kappa12 = None
+        self.kappa11 = None
+        self.para = parameters
+        self.obs = obs
+        self.dt = timestep
+        self.loglike = 0
+        self.observedyield = observedyield
 
-    def __init__(self, k, x0, theta, sigma, start, end, pi: float, N: int, idMatrix, observedYields: list, H,
-                 Lambda: float or np.array, sigmaL: float or np.array, sigmaS: float, Xt: np.array or None,
-                 tauList: list):
-        # inherit from Nelson Siegel class the parameters to compute the A and B, needed in the measurement eq.
+    def checkEigen(self):
+        self.eigvalK, self.eigvecK = np.linalg.eig(self.K)
+        if self.eigvalK.all() > 0:
+            pass
+        else:
+            print('problem')
 
-        super().__init__(Lambda, sigmaL, sigmaS, Xt, tauList)
-        self.pi = pi  # greek pi so 3.14....
-        # self.T = T  # total number of observation dates
-        self.N = N  # number of obs (yields) per time period t. So we have 2y,3y,5y,7y and 10y
-        self.idMatrix = idMatrix  # same size as updated step variance 2x2?
-        self.predEqExpVal = 0.0
-        self.predEqVar = 0.0
-        self.observedYields = observedYields  # real and nominal 10x1 vector
-        self.k = k  # matrix 4x4 with lambda placed on diag (see text in the assignment)
-        self.x0 = x0  # initial value -> unconditional mean
-        self.theta = theta  # vector 4x1 -> all zeros?
-        self.sigma = sigma  # matrix 4x4 for both real and nominal yields
-        self.start = start  # start period
-        self.end = end  # end period
-        self.H = H  # matrix of measurement errors 10x1 vector, i.e. one for each yield...
+    def calcAB(self):
+        nelsonSiegelN = NelsonSiegel(Lambda=self.lambda_N, sigmaS=self.sigma_NS, sigmaL=self.sigma_NL, Xt=self.Theta,
+                                     tauList=[2, 3, 5, 7, 10])
+        nelsonSiegelR = NelsonSiegel(Lambda=self.lambda_R, sigmaL=self.sigma_RL, sigmaS=self.sigma_RS, Xt=self.Theta,
+                                     tauList=[2, 3, 5, 7, 10])
+        ANom = nelsonSiegelN.Avector()
+        AReal = nelsonSiegelR.Avector()
+        self.A = np.array([ANom, AReal]).reshape(1, 10)
+        self.Bmatrix = np.zeros(40).reshape(10, 4)
+        self.Bmatrix[0:5, 0:2] = nelsonSiegelN.Bmatrix()
+        self.Bmatrix[5:10, 2:4] = nelsonSiegelR.Bmatrix()
 
-    def stateTransEq(self, t) -> float:
-        """This is the State transition equation (Xt), with initial guess x0"""
+    def condUncCov(self):
 
-        statetranseqt = self.theta * (self.idMatrix - np.exp(-self.k)) + np.exp(-self.k * t) * self.x0 + \
-                        np.sum(np.exp(-self.k * (t - (t - 1))) * self.sigma * self.sigma.T) * \
-                        np.exp(-self.k * (t - (t - 1))).T
+        # Cond and uncond covariance matrix
+        ## S-overline matrix
+        Sbar = np.dot(np.dot(np.linalg.inv(self.eigvecK), np.dot(self.Sigma, self.Sigma.T)),
+                      np.linalg.inv(self.eigvecK).T)
+        Sbar = Sbar.real
 
-        return statetranseqt
+        ## Step 2: V-overline
+        Vbar = np.zeros(16).reshape(Sbar.shape)
+        for i in range(0, len(Sbar)):
+            for j in range(0, len(Sbar)):
+                Vbar[i, j] = (Sbar[i, j] / (self.eigvalK[i] + self.eigvalK[j])) * \
+                             (1 - np.exp(-(self.eigvalK[i] + self.eigvalK[j]) * self.dt))
 
-    def condVar(self, t):
-        """Conditional variance from Christensen and Lopez paper."""
+        VbarUnc = np.zeros(16).reshape(Sbar.shape)
+        for i in range(0, len(Sbar)):
+            for j in range(0, len(Sbar)):
+                VbarUnc[i, j] = (Sbar[i, j] / (self.eigvalK[i] + self.eigvalK[j]))
 
-        return np.sum(
-            np.exp(-self.k * (t - (t - 1))) * self.sigma * self.sigma.T * (np.exp(-self.k * (t - (t - 1)))).T)
+        # take the real part only
+        Vbar = Vbar.real
+        VbarUnc = VbarUnc.real
 
-    def uncondVar(self):
-        """This is the simple variance of state transition equation."""
+        self.condVar = np.dot(self.eigvecK, np.dot(Vbar, self.eigvecK.T))
+        self.unconVar = np.dot(self.eigvecK, np.dot(VbarUnc, self.eigvecK.T))
+        self.uncMean = self.Theta
 
-        var = np.std([self.stateTransEq(t=t) for t in range(self.start, self.end)]) ** 2
+    def calcFC(self):
+        self.Ft = np.exp(-self.K * self.dt)
+        self.Ct = np.dot(self.Theta, np.eye(4)) - np.dot(self.Theta, np.exp(-self.K * self.dt))
 
-        return var
+    def kalmanfilter(self):
+        para = self.para
+        # initialize all the parameter values
+        self.kappa11 = para[0]
+        self.kappa12 = para[1]
+        self.kappa13 = para[2]
+        self.kappa14 = para[3]
 
-    def predictionStepMoments(self) -> tuple[Any, ...]:
-        """Prediction step equations of the Kalman Filter."""
+        self.kappa21 = para[4]
+        self.kappa22 = para[5]
+        self.kappa23 = para[6]
+        self.kappa24 = para[7]
 
-        self.predEqExpVal = [np.exp(-self.k) * self.stateTransEq(t) + self.theta * (self.idMatrix - np.exp(-self.k))
-                             for t in range(self.start, self.end)]
-        self.predEqVar = [np.exp(-self.k) * self.uncondVar() * (np.exp(-self.k)).T +
-                          self.condVar(t=t) for t in range(self.start, self.end)]
+        self.kappa31 = para[8]
+        self.kappa32 = para[9]
+        self.kappa33 = para[10]
+        self.kappa34 = para[11]
 
-        return self.predEqExpVal, self.predEqVar
+        self.kappa41 = para[12]
+        self.kappa42 = para[13]
+        self.kappa43 = para[14]
+        self.kappa44 = para[15]
 
-    def measEq(self, t) -> float:
-        """Measurement equation"""
+        self.theta1 = para[16]
+        self.theta2 = para[17]
+        self.theta3 = para[18]
+        self.theta4 = para[19]
 
-        yt = self.A(tau=t) + self.B(tau=t) * self.stateTransEq(t=t) + self.sigma
-        return yt
+        # Force positive
+        self.sigma_NL = abs(para[20])
+        self.sigma_NS = abs(para[21])
+        self.sigma_RL = abs(para[22])
+        self.sigma_RS = abs(para[23])
+        self.lambda_N = para[24]
+        self.lambda_R = para[25]
+        self.sigma_err_sq = para[26] ** 2
 
-    def kalmanGainMatrix(self, t):
-        kgm = self.condVar(t=t) * self.B(tau=t).T * (self.St(t=t) ** (-1))
+        self.K = np.array([self.kappa11, self.kappa12, self.kappa13, self.kappa14,
+                           self.kappa21, self.kappa22, self.kappa23, self.kappa24,
+                           self.kappa31, self.kappa32, self.kappa33, self.kappa34,
+                           self.kappa41, self.kappa42, self.kappa43, self.kappa44]).reshape(4, 4)
 
-        return kgm
+        self.Theta = np.array([self.theta1, self.theta2, self.theta3, self.theta4])
 
-    def St(self, t):
-        """This is the variance of the pre-fit residuals."""
+        self.Sigma = np.diag([self.sigma_NL, self.sigma_NS, self.sigma_RL, self.sigma_RS])
 
-        prefitResVar = self.H + self.B(tau=t) * self.predEqExpVal * self.B(tau=t).T
+        self.H = np.diag([self.sigma_err_sq for _ in range(10)])
 
-        return prefitResVar
+        self.checkEigen()
+        self.calcAB()
+        self.condUncCov()
+        self.calcFC()
 
-    def residuals(self, t):
-        """This returns the pre-fit residual."""
+        for o in range(0, self.obs):
+            # prediction step
+            self.Xt_1 = np.dot(self.Ft, self.uncMean) + self.Ct
+            self.Pt_1 = np.dot(self.Ft, np.dot(self.unconVar, self.Ft.T)) + np.dot(np.exp(-self.K * self.dt),
+                                                                                   np.dot(self.Sigma,
+                                                                                          np.dot(self.Sigma.T,
+                                                                                                 np.exp(
+                                                                                                     -self.K *
+                                                                                                     self.dt).T))
+                                                                                   )
+            # model implied yields
+            self.yt = -self.A + (np.dot(-self.Bmatrix, self.Xt_1))
 
-        res = self.observedYields[t] - self.measEq(t=t)
+            # residuals
+            self.res = np.array(self.observedyield.iloc[o]) - self.yt
 
-        return res
+            # cov matrix prefit residuals
+            self.S = self.H + np.dot(self.Bmatrix, np.dot(self.Pt_1, self.Bmatrix.T))
 
-    def updateStepMoments(self) -> tuple[Any, ...]:
-        """Updated step equations of the Kalman Filter."""
+            # det of cov matrix prefit residuals
+            self.detS = np.linalg.det(self.S)
+            if self.detS > 0:
+                # inverse of cov matrix
+                self.Sinv = np.linalg.inv(self.S)
 
-        updatedEqExpVal = [self.predEqExpVal[t] + self.kalmanGainMatrix(t=t) *
-                           self.residuals(t=t) for t in range(self.start, self.end)]
+                # kalman gain matrix
+                self.gainMatrix = np.dot(self.Pt_1, np.dot(self.Bmatrix.T, self.Sinv))
 
-        updatedEqVar = [(self.idMatrix - self.kalmanGainMatrix(t=t) * self.B(tau=t)) *
-                        self.predEqVar[t] for t in range(self.start, self.end)]
+                # updated step
+                self.Xt = self.Xt_1 + np.dot(self.gainMatrix, self.res.T)
+                self.Pt = np.dot(np.eye(4), self.Pt_1) - np.dot(self.gainMatrix, np.dot(self.Bmatrix, self.Pt_1))
 
-        return updatedEqExpVal, updatedEqVar
+                # log likelihood for each obs step
+                self.ith_loglikelihood = self.loglike - 0.5 * (
+                        np.log(self.detS) + np.dot(self.res, np.dot(self.Sinv, self.res.T)))
 
-    def logLikelihood(self) -> float:
-        """Log likelihood equation for a Gaussian process."""
+                # update the loglikelihood
+                self.loglike += self.ith_loglikelihood
 
-        loglikelihood = -(self.N * self.end / 2) * np.log(2 * self.pi) - (1 / 2) * np.sum(
-            [np.log(self.St(t=t)) + (self.residuals(t=t)).T * (self.St(t=t) ** (-1)) *
-             (self.residuals(t=t)) for t in range(self.start, self.end)])
+            else:
+                print('Determinant is not-positive.')
+                break
 
-        return loglikelihood
+        return -self.loglike
