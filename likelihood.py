@@ -1,6 +1,8 @@
 from scipy import optimize
-import numpy as np
 
 
-def MLfunction(funcToOptimize):
-    return optimize.minimize(fun=lambda parameters: funcToOptimize, x0=np.array([-100, 100]), method='nelder-mead')
+#def MLfunction(funcToOptimize, initguess):
+#    return optimize.newton(func=lambda params: funcToOptimize, x0=initguess)
+def ML(funcToOptimize, initguess):
+    f = optimize.minimize(fun=lambda pars: funcToOptimize, x0=initguess, method='nelder-mead')
+    return f

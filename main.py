@@ -1,5 +1,4 @@
 # Packages
-
 import numpy as np
 import pandas as pd
 from scipy import optimize
@@ -14,7 +13,7 @@ from statTests import statTest
 from yieldMaturitySelector import yieldMatSelector
 
 # methods - helpers
-from likelihood import MLfunction
+from likelihood import ML
 
 # Q1 - EDA
 print('===============Q1===============')
@@ -116,8 +115,21 @@ if plotgraphs:
 
 # Q11 - Kalman filter
 yieldNR = nominal_yields_2_10y_eom.merge(real_yields_2_10y_eom, on='Date').drop('Date', axis=1)
+pars = np.random.randn(27)
 
-parameters = np.random.random(27)
+kf = KalmanFilter(observedyield=yieldNR, obs=len(yieldNR.T), timestep=-1 / 12)
 
+# it breaks if one of the eigen is neg... not sure how to fix it...thou
+loglike, Xt, Pt, residuals = kf.kalmanfilter(pars=pars)
+
+## Q12
 # ML estimation
-ML = MLfunction(KalmanFilter(parameters=parameters, observedyield=yieldNR, obs=150, timestep=-1 / 12).kalmanfilter())
+MLEstimation = ML(kf.kalmanfilter(pars), np.zeros(27))
+final_parameters = MLEstimation.x
+
+## Q13 # here we need to use the parameters after the minimization and re-build the model implied yields with
+# the final A and B, because I do not think scipy.minimize can return the residuals directly with new values.
+# rmse = np.sqrt((A + BX)-YieldNR
+
+## Q14 using rtN=LNt +StN,rtR=LRt +SRt that come from Xt it should be doable,
+# but we need to get the minimization correct first.
