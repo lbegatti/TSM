@@ -115,16 +115,20 @@ if plotgraphs:
 
 # Q11 - Kalman filter
 yieldNR = nominal_yields_2_10y_eom.merge(real_yields_2_10y_eom, on='Date').drop('Date', axis=1)
-pars = np.random.randn(27)
+np.random.seed(1235)
+# matrixSize = 6
+# prova = np.random.rand(matrixSize, matrixSize).reshape(36, 1)
+# prova2 = np.dot(prova, prova.transpose())[0:27, 1]
+pars = np.random.random(27)
 
-kf = KalmanFilter(observedyield=yieldNR, obs=len(yieldNR.T), timestep=-1 / 12)
+kf = KalmanFilter(observedyield=yieldNR, obs=len(yieldNR.T), timestep=1 / 12)
 
-# it breaks if one of the eigen is neg... not sure how to fix it...thou
-loglike, Xt, Pt, residuals = kf.kalmanfilter(pars=pars)
+# it breaks if one of the eigen is neg... not sure how to fix it...though
+loglike = kf.kalmanfilter(pars=pars)
 
 ## Q12
 # ML estimation
-MLEstimation = ML(kf.kalmanfilter(pars), np.zeros(27))
+MLEstimation = ML(kf.kalmanfilter(pars), pars)
 final_parameters = MLEstimation.x
 
 ## Q13 # here we need to use the parameters after the minimization and re-build the model implied yields with
