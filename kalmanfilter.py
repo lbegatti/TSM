@@ -177,23 +177,25 @@ class KalmanFilter(NelsonSiegel):
     #    self.condUncCov()
     #    self.calcFC()
 
-    def kalmanfilter(self, pars) -> tuple[Any, ...]:
+    def kalmanfilter(self, pars):
         self.paramToOptimize(params=pars)
         while self.checkEigen():
             self.checkEigen()
             self.calcAB()
             self.condUncCov()
             self.calcFC()
+            self.Xt_1 = self.Theta
+            self.Pt_1 = self.unconVar
             for o in range(0, self.obs):
                 # prediction step
-                self.Xt_1 = np.dot(self.Ft, self.uncMean) + self.Ct
-                self.Pt_1 = np.dot(self.Ft, np.dot(self.unconVar, self.Ft.T)) + np.dot(np.exp(-self.K * self.dt),
-                                                                                       np.dot(self.Sigma,
-                                                                                              np.dot(self.Sigma.T,
-                                                                                                     np.exp(
-                                                                                                         -self.K *
-                                                                                                         self.dt).T))
-                                                                                       )
+                self.Xt_1 = np.dot(self.Ft, self.Xt_1) + self.Ct
+                self.Pt_1 = np.dot(self.Ft, np.dot(self.Pt_1, self.Ft.T)) + np.dot(np.exp(-self.K * self.dt),
+                                                                                   np.dot(self.Sigma,
+                                                                                          np.dot(self.Sigma.T,
+                                                                                                 np.exp(
+                                                                                                     -self.K *
+                                                                                                     self.dt).T))
+                                                                                   )
                 # model implied yields
                 self.yt = -self.A + (np.dot(-self.Bmatrix, self.Xt_1))
 
@@ -228,4 +230,4 @@ class KalmanFilter(NelsonSiegel):
                     print('Determinant is not-positive.')
                     break
 
-            return self.loglike, self.Xt, self.Pt, self.res
+            return self.loglike
