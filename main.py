@@ -2,10 +2,11 @@
 import numpy as np
 import pandas as pd
 from scipy import optimize
+import logging
+import time
 
 # classes
 from datamanipulation import dataManipulation
-from helpers import plotYield, BEIrates
 from kalmanfilter import KalmanFilter
 from nelsonSiegel import NelsonSiegel
 from pcaAnalysis import factorAnalysis
@@ -13,7 +14,14 @@ from statTests import statTest
 from yieldMaturitySelector import yieldMatSelector
 
 # methods - helpers
-from likelihood import ML
+from helpers import plotYield, BEIrates, RMSE
+
+# logging
+logger = logging.getLogger()
+handler = logging.StreamHandler()
+handler.setLevel(logging.INFO)
+logger.setLevel(logging.INFO)
+logger.addHandler(handler)
 
 # Q1 - EDA
 print('===============Q1===============')
@@ -120,61 +128,78 @@ yieldNR = nominal_yields_2_10y_eom.merge(real_yields_2_10y_eom, on='Date').drop(
 # prova = np.random.rand(matrixSize, matrixSize).reshape(36, 1)
 # prova2 = np.dot(prova, prova.transpose())[0:27, 1]
 jacobpars = np.array([5.2740, 9.0130, 0.0, 0.0,
-                 -0.2848, 0.5730, 0.0, 0.0,
-                 0.0, 0.0, 5.2740, 9.0130,
-                 0.0, 0.0, -0.2848, 0.5730, #KP
-                 
-                 0.0, 0.0, 0.0, 0.0,  #thetaP
-                 0.0154, 0.0117, 0.0154, 0.0117, #sigma
-                 0.8244, .08244, 0.1
-                 ])
+                      -0.2848, 0.5730, 0.0, 0.0,
+                      0.0, 0.0, 5.2740, 9.0130,
+                      0.0, 0.0, -0.2848, 0.5730,  # KP
+
+                      0.0, 0.0, 0.0, 0.0,  # thetaP
+                      0.0154, 0.0117, 0.0154, 0.0117,  # sigma
+                      0.8244, .08244, 0.1
+                      ])
 kf = KalmanFilter(observedyield=yieldNR, obs=len(yieldNR), timestep=1 / 12)
-kf.kalmanfilter(pars=jacobpars)
+jacobresults = kf.kalmanfilter(pars=jacobpars)
 # it breaks if one of the eigen is neg... not sure how to fix it...though
 # loglike = kf.kalmanfilter(pars=pars)
 # print(loglike)
 
 # #Finding nice seeds that fulfill pos eigen values and pos det(S):
-nice_seeds={'i':[0], 'initialpars':[jacobpars], 'initialloglike':[kf.kalmanfilter(pars=jacobpars)], 'optpars':[], 'optloglike':[]}
+nice_seeds = {'i': [0], 'initialpars': [jacobpars], 'initialloglike': [jacobresults], 'optpars': [],
+              'optloglike': []}
 
-i=1
+i = 1
 print('finding nice_seeds')
-while len(nice_seeds['i'])<5:
+while len(nice_seeds['i']) < 4:
     np.random.seed(i)
-    print(i, end='\r')
-    initialpars=np.random.uniform(-0.5,0.5,27)
+    #print(i, end='\r')
+    initialpars = np.random.uniform(-0.5, 0.5, 27)
     loglikefind = kf.kalmanfilter(pars=initialpars)
-    if loglikefind<888888:
+    if loglikefind < 888888:
         print(f'i: {i}, found: {len(nice_seeds["i"])}, loglike: {loglikefind}')
         nice_seeds['i'].append(i)
         nice_seeds['initialpars'].append(initialpars)
         nice_seeds['initialloglike'].append(loglikefind)
-            
-    i+=1
+    i += 1
+    if len(nice_seeds['i']) == 3:
+        break
 
-print(nice_seeds['i'],nice_seeds['initialloglike'])
-
+print(nice_seeds['i'], nice_seeds['initialloglike'])
 
 # Q12
 # ML estimation
-from scipy import optimize
 
-def ML(initguess):
-    f = optimize.minimize(fun=lambda pars: kf.kalmanfilter(pars), x0=initguess, method='nelder-mead')
-    return f
 
-for pars in nice_seeds['initialpars']:
-    print('OPTIMIZING')
-    MLEstimation = ML(pars)
+# def ML(initguess):
+#    f = optimize.minimize(fun=lambda pars: kf.kalmanfilter(pars=pars), x0=initguess, method='nelder-mead')
+#    return f
+
+startstamp = time.time()
+for i, pars in enumerate(nice_seeds['initialpars']):
+    logger.info(f'Optimizing seed {i} out of {len(nice_seeds[list(nice_seeds.keys())[0]])-1}...')
+    MLEstimation = optimize.minimize(fun=lambda params: kf.kalmanfilter(pars=pars), x0=pars, method='nelder-mead')
     nice_seeds['optpars'].append(MLEstimation.x)
     nice_seeds['optloglike'].append(MLEstimation.fun)
+    timestamp = time.time()
+    logger.info(time.strftime('%H:%M:%S', time.gmtime(timestamp - startstamp)) + ", " +
+                time.strftime('%H:%M:%S', time.localtime(time.time())))
+endstamp = time.time()
+logger.info("ALL DONE\n")
+logger.info(time.strftime('%H:%M:%S', time.gmtime(endstamp - startstamp)) + ", " +
+            time.strftime('%H:%M:%S', time.localtime(time.time())))
 
-print(nice_seeds['i'],nice_seeds['initialloglike'],nice_seeds['optloglike'])
+print(nice_seeds['i'], nice_seeds['initialloglike'], nice_seeds['optloglike'])
 
+# I GOT THIS XD : [0, 76, 77] [-4554.554683627952, -3869.3091365847804, 878630.5994460909] [-23715964.692126855, -23715279.44657981, -19133138.82950106]
 
-## Q13 # here we need to use the parameters after the minimization and re-build the model implied yields with
-# the final A and B, because I do not think scipy.minimize can return the residuals directly with new values.
-# rmse = np.sqrt((A + BX)-YieldNR
+print('===============Q12===============')
+final_opt_params = nice_seeds['optpars'][1]
+print(final_opt_params)
+finalXt, finalPt, finalImplYields, finalRes, finalK, finalTheta, finalSigma, finalA, finalBmatrix, \
+    finalLambda_N, finalLambda_R = kf.kalmanFilterFinal(final_opt_params)
 
+print('===============Q13===============')
+# here we need to use the parameters after the minimization and re-build the model implied yields with A and B.
+#rmse = RMSE(observedYield=yieldNR, modelYield=finalImplYields, obs=len(yieldNR))
+
+print('===============Q14===============')
 ## Q14 using rtN=LNt +StN,rtR=LRt +SRt that come from Xt it should be doable,
 # but we need to get the minimization correct first.

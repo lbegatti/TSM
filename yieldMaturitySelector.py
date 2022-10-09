@@ -17,14 +17,18 @@ class yieldMatSelector:
             nominal_yields_2_10y = df[['Date', 'SVENY02', 'SVENY03', 'SVENY05', 'SVENY07',
                                        'SVENY10']].apply(lambda x: x / 100 if x.name not in 'Date' else x)
             if FD is False:
-                nominal_yields_2_10y_eom = nominal_yields_2_10y[
-                    nominal_yields_2_10y['Date'].dt.is_month_end == True].reset_index(inplace=False, drop=True)
+                nominal_yields_2_10y = nominal_yields_2_10y.dropna()
+                nominal_yields_2_10y_eom = nominal_yields_2_10y.loc[nominal_yields_2_10y.groupby(pd.Grouper(
+                    key='Date', freq='1M')).Date.idxmax()].reset_index(inplace=False, drop=True)
+                # nominal_yields_2_10y_eom = nominal_yields_2_10y[
+                #    nominal_yields_2_10y['Date'].dt.is_month_end == True].reset_index(inplace=False, drop=True)
                 return nominal_yields_2_10y_eom
             else:
                 nominal_yields_2_10y_shifted = nominal_yields_2_10y.apply(
                     lambda x: x.diff(1) if x.name not in 'Date' else x).dropna()
-                nominal_yields_2_10y_eom_shifted = nominal_yields_2_10y_shifted[
-                    nominal_yields_2_10y_shifted['Date'].dt.is_month_end == True].reset_index(inplace=False, drop=True)
+                nominal_yields_2_10y_eom_shifted = nominal_yields_2_10y_shifted.loc[
+                    nominal_yields_2_10y.groupby(pd.Grouper(key='Date', freq='1M')).Date.idxmax()].reset_index(
+                    inplace=False, drop=True)
                 return nominal_yields_2_10y_eom_shifted
 
         else:
@@ -32,12 +36,15 @@ class yieldMatSelector:
             real_yields_2_10y = df[['Date', 'TIPSY02', 'TIPSY03', 'TIPSY05', 'TIPSY07', 'TIPSY10']].apply(
                 lambda x: x / 100 if x.name not in 'Date' else x)
             if FD is False:
-                real_yields_2_10y_eom = real_yields_2_10y[
-                    real_yields_2_10y['Date'].dt.is_month_end == True].reset_index(inplace=False, drop=True)
+                real_yields_2_10y = real_yields_2_10y.dropna()
+                real_yields_2_10y_eom = real_yields_2_10y.loc[real_yields_2_10y.groupby(pd.Grouper(
+                    key='Date', freq='1M')).Date.idxmax()].reset_index(inplace=False, drop=True)
+                # real_yields_2_10y_eom = real_yields_2_10y[
+                #    real_yields_2_10y['Date'].dt.is_month_end == True].reset_index(inplace=False, drop=True)
                 return real_yields_2_10y_eom
             else:
                 real_yields_2_10y_shifted = real_yields_2_10y.apply(
                     lambda x: x.diff(1) if x.name not in 'Date' else x).dropna()
-                real_yields_2_10y_eom_shifted = real_yields_2_10y_shifted[
-                    real_yields_2_10y_shifted['Date'].dt.is_month_end == True].reset_index(inplace=False, drop=True)
+                real_yields_2_10y_eom_shifted = real_yields_2_10y_shifted.loc[real_yields_2_10y.groupby(pd.Grouper(
+                    key='Date', freq='1M')).Date.idxmax()].reset_index(inplace=False, drop=True)
                 return real_yields_2_10y_eom_shifted

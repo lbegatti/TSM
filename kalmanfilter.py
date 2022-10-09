@@ -8,6 +8,7 @@ from scipy import optimize
 
 class KalmanFilter(NelsonSiegel):
     def __init__(self, observedyield: pd.DataFrame, obs: int, timestep: float):
+        self.implyields = None
         self.VbarUnc = None
         self.Vbar = None
         self.Sbar = None
@@ -120,7 +121,7 @@ class KalmanFilter(NelsonSiegel):
         # self.eigvalK = self.eigvalK.real
         # self.eigvecK = self.eigvecK.real
 
-        if all(self.eigvalK.real > 0): #and all(np.isreal(self.eigvalK))
+        if all(self.eigvalK.real > 0):  # and all(np.isreal(self.eigvalK))
             return True
         else:
             # print('At least one eigenvalue is negative or complex!') #prints too much
@@ -144,7 +145,7 @@ class KalmanFilter(NelsonSiegel):
         ## S-overline matrix
         self.Sbar = np.dot(np.dot(np.linalg.pinv(self.eigvecK), np.dot(self.Sigma, self.Sigma.T)),
                            np.linalg.pinv(self.eigvecK).T)
-        #self.Sbar = self.Sbar.real
+        # self.Sbar = self.Sbar.real
 
         ## Step 2: V-overline
         self.Vbar = np.zeros(16).reshape(self.Sbar.shape)
@@ -168,8 +169,8 @@ class KalmanFilter(NelsonSiegel):
 
     def calcFC(self):
         self.Ft = np.exp(-self.K * self.dt)
-        self.Ct = np.dot(np.eye(4),self.Theta) - np.dot(np.exp(-self.K * self.dt),self.Theta)
-        #self.Ct=self.Theta-np.dot(np.exp(-self.K*self.dt),self.Theta)
+        self.Ct = np.dot(np.eye(4), self.Theta) - np.dot(np.exp(-self.K * self.dt), self.Theta)
+        # self.Ct=self.Theta-np.dot(np.exp(-self.K*self.dt),self.Theta)
 
     # def runSetup(self):
     #   self.paramToOptimize(params=)
@@ -185,7 +186,7 @@ class KalmanFilter(NelsonSiegel):
         self.calcAB()
         self.condUncCov()
         self.calcFC()
-        
+
         self.Xt = self.Theta
         self.Pt = self.unconVar
         for o in range(self.obs):
@@ -196,9 +197,9 @@ class KalmanFilter(NelsonSiegel):
             self.Xt_1 = (np.dot(self.Ft, self.Xt) + self.Ct)
             self.Pt_1 = (np.dot(self.Ft, np.dot(self.Pt, self.Ft.T)) + self.unconVar)
             # model implied yields
-            
+
             self.yt = np.array(self.observedyield.iloc[o].values)[0]
-            
+
             # residuals
             self.res = self.yt - self.A - self.Bmatrix @ self.Xt_1
 
@@ -217,7 +218,7 @@ class KalmanFilter(NelsonSiegel):
 
                 # updated step
                 self.Xt = self.Xt_1 + np.dot(self.gainMatrix, self.res)
-                self.Pt = np.dot(np.eye(4)-np.dot(self.gainMatrix, self.Bmatrix),self.Pt_1)
+                self.Pt = np.dot(np.eye(4) - np.dot(self.gainMatrix, self.Bmatrix), self.Pt_1)
 
                 # log likelihood for each obs step
                 self.loglike += - 0.5 * (
@@ -228,3 +229,38 @@ class KalmanFilter(NelsonSiegel):
                 return 888888
 
         return -self.loglike
+
+    def kalmanFilterFinal(self, pars) -> tuple[Any, ...]:
+        self.paramToOptimize(params=pars)
+        self.checkEigen()
+        self.calcAB()
+        self.condUncCov()
+        self.calcFC()
+
+        self.Xt = self.Theta
+        self.Pt = self.unconVar
+        impliedYield_final = []
+        for o in range(self.obs):
+            self.Xt_1 = (np.dot(self.Ft, self.Xt) + self.Ct)
+            self.Pt_1 = (np.dot(self.Ft, np.dot(self.Pt, self.Ft.T)) + self.unconVar)
+            # observed yields
+            self.yt = np.array(self.observedyield.iloc[o].values)[0]
+            # model implied yields
+            self.implyields = - self.A - self.Bmatrix @ self.Xt_1
+            impliedYield_final.append(self.implyields)
+            # residuals
+            self.res = self.yt - self.A - self.Bmatrix @ self.Xt_1
+            # cov matrix prefit residuals
+            self.S = self.H + np.dot(self.Bmatrix, np.dot(self.Pt_1, self.Bmatrix.T))
+            # det of cov matrix prefit residuals
+            self.detS = np.linalg.det(self.S)
+            # inverse of cov matrix
+            self.Sinv = np.linalg.pinv(self.S)
+            # kalman gain matrix
+            self.gainMatrix = np.dot(self.Pt_1, np.dot(self.Bmatrix.T, self.Sinv))
+            # updated step
+            self.Xt = self.Xt_1 + np.dot(self.gainMatrix, self.res)
+            self.Pt = np.dot(np.eye(4) - np.dot(self.gainMatrix, self.Bmatrix), self.Pt_1)
+        impliedYield_final_df = pd.DataFrame(impliedYield_final)
+        return self.Xt, self.Pt, impliedYield_final_df, self.res, self.K, self.Theta, self.Sigma, \
+               self.A, self.Bmatrix, self.lambda_N, self.lambda_R

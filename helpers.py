@@ -2,6 +2,7 @@ from typing import Tuple
 
 import pandas as pd
 import plotly.express as px
+import numpy as np
 from pandas import DataFrame
 from plotly.graph_objs import Figure
 
@@ -18,7 +19,6 @@ def plotYield(df: pd.DataFrame, columns: list, yieldtype: str, FD: bool):
 
 
 def BEIrates(nominal_df: pd.DataFrame, real_df: pd.DataFrame) -> pd.DataFrame:
-
     """ Simple method for calculating and plotting the BEI rates."""
 
     BEI = pd.DataFrame()
@@ -30,3 +30,14 @@ def BEIrates(nominal_df: pd.DataFrame, real_df: pd.DataFrame) -> pd.DataFrame:
     px.line(BEI, x='Date', y=['2Y', '5Y', '10Y'], title='BEI Rates, Nominal-Real Yields').update_layout(
         xaxis_title='Date', yaxis_title='BEI Rates').write_image('Output/BEI Rates, Nominal-Real Yields.png')
     return BEI
+
+
+def plotFilteredStateVariable(Xt, Yt):
+    filteredStateVarXt = px.line(Xt)
+    filteredStateVarPt = px.line(Yt)
+    return filteredStateVarXt, filteredStateVarPt
+
+
+def RMSE(observedYield, modelYield, obs):
+    rmse = np.sqrt((1 / obs) * [np.sum((modelYield.iloc[i] - observedYield.iloc[i]) ** 2) for i in range(obs)])
+    return rmse
