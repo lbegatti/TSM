@@ -141,6 +141,7 @@ i=1
 print('finding nice_seeds')
 while len(nice_seeds['i'])<5:
     np.random.seed(i)
+    print(i, end='\r')
     initialpars=np.random.uniform(-0.5,0.5,27)
     loglikefind = kf.kalmanfilter(pars=initialpars)
     if loglikefind<888888:
@@ -156,19 +157,19 @@ print(nice_seeds['i'],nice_seeds['initialloglike'])
 
 # Q12
 # ML estimation
-# # from scipy import optimize
+from scipy import optimize
 
-# # def ML(initguess):
-# #     f = optimize.minimize(fun=lambda pars: kf.kalmanfilter(pars), x0=initguess, method='nelder-mead')
-# #     return f
+def ML(initguess):
+    f = optimize.minimize(fun=lambda pars: kf.kalmanfilter(pars), x0=initguess, method='nelder-mead')
+    return f
 
-# # for pars in nice_seeds['initialpars']:
-# #     print('OPTIMIZING')
-# #     MLEstimation = ML(pars)
-# #     nice_seeds['optpars'].append(MLEstimation.x)
-# #     nice_seeds['optloglike'].append(MLEstimation.fun)
+for pars in nice_seeds['initialpars']:
+    print('OPTIMIZING')
+    MLEstimation = ML(pars)
+    nice_seeds['optpars'].append(MLEstimation.x)
+    nice_seeds['optloglike'].append(MLEstimation.fun)
 
-# # print(nice_seeds['i'],nice_seeds['initialloglike'],nice_seeds['optloglike'])
+print(nice_seeds['i'],nice_seeds['initialloglike'],nice_seeds['optloglike'])
 
 
 ## Q13 # here we need to use the parameters after the minimization and re-build the model implied yields with
