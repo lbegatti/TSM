@@ -121,15 +121,40 @@ np.random.seed(1235)
 # prova2 = np.dot(prova, prova.transpose())[0:27, 1]
 pars = np.random.random(27)
 
-kf = KalmanFilter(observedyield=yieldNR, obs=len(yieldNR.T), timestep=1 / 12)
+kf = KalmanFilter(observedyield=yieldNR, obs=len(yieldNR), timestep=1 / 12)
 
 # it breaks if one of the eigen is neg... not sure how to fix it...though
-loglike = kf.kalmanfilter(pars=pars)
+# loglike = kf.kalmanfilter(pars=pars)
+# print(loglike)
+
+# #Finding nice seeds that fulfill pos eigen values and pos det(S):
+nice_seeds={'i':[], 'initialpars':[],'optpars':[], 'optloglike':[]}
+
+i=0
+print('finding nice_seeds')
+while len(nice_seeds['i'])<10:
+    np.random.seed(i)
+    initialpars=np.random.uniform(-0.5,0.5,27)
+    loglikefind = kf.kalmanfilter(pars=initialpars)
+    print(i)
+    if loglikefind!=999999:
+        if loglikefind!=888888:
+            print(f'i: {i}, found: {len(nice_seeds["i"])}, loglike: {loglikefind}')
+            nice_seeds['i'].append(i)
+            nice_seeds['initialpars'].append(initialpars)
+            break
+    i+=1
+
+print(pd.DataFrame(nice_seeds))
+# print(nice_seeds)
 
 ## Q12
 # ML estimation
-MLEstimation = ML(kf.kalmanfilter(pars), pars)
-final_parameters = MLEstimation.x
+# # # MLEstimation = ML(kf.kalmanfilter(pars), pars)
+# # # final_parameters = MLEstimation.x
+# # # print(final_parameters)
+# # # print(MLEstimation.fun)
+
 
 ## Q13 # here we need to use the parameters after the minimization and re-build the model implied yields with
 # the final A and B, because I do not think scipy.minimize can return the residuals directly with new values.
