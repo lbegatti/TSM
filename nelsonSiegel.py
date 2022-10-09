@@ -23,13 +23,13 @@ class NelsonSiegel:
                 4 * np.power(self.Lambda, 3)) * bracket
 
     def Avector(self):
-        return [self.A(tau=t) for t in self.tauList]
+        return np.array([[-self.A(tau=t)/t for t in self.tauList]])
 
     def B(self, tau):
         return np.array([-tau, (np.exp(-self.Lambda * tau) - 1) / self.Lambda])
 
     def Bmatrix(self):
-        return [self.B(tau=t) for t in self.tauList]
+        return np.array([-self.B(tau=t)/t for t in self.tauList])
 
     def getYields(self) -> list:
         return [(t, -self.A(t) / t - np.dot(self.B(t), self.Xt) / t) for t in self.tauList]

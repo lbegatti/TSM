@@ -221,7 +221,7 @@ class KalmanFilter(NelsonSiegel):
 
                 # log likelihood for each obs step
                 self.loglike += - 0.5 * (
-                        np.log(self.detS) + np.dot(self.res.T, np.dot(self.Sinv, self.res)))
+                        np.log(self.detS) + self.res.T @ self.Sinv @ self.res)
 
             else:
                 # print('Determinant is not-positive.') #prints to much

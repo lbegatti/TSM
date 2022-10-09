@@ -114,46 +114,61 @@ if plotgraphs:
     # Purely theoretical
 
 # Q11 - Kalman filter
+print('===============Q11===============')
 yieldNR = nominal_yields_2_10y_eom.merge(real_yields_2_10y_eom, on='Date').drop('Date', axis=1)
-np.random.seed(1235)
 # matrixSize = 6
 # prova = np.random.rand(matrixSize, matrixSize).reshape(36, 1)
 # prova2 = np.dot(prova, prova.transpose())[0:27, 1]
-pars = np.random.random(27)
-
+jacobpars = np.array([5.2740, 9.0130, 0.0, 0.0,
+                 -0.2848, 0.5730, 0.0, 0.0,
+                 0.0, 0.0, 5.2740, 9.0130,
+                 0.0, 0.0, -0.2848, 0.5730, #KP
+                 
+                 0.0, 0.0, 0.0, 0.0,  #thetaP
+                 0.0154, 0.0117, 0.0154, 0.0117, #sigma
+                 0.8244, .08244, 0.1
+                 ])
 kf = KalmanFilter(observedyield=yieldNR, obs=len(yieldNR), timestep=1 / 12)
-
+kf.kalmanfilter(pars=jacobpars)
 # it breaks if one of the eigen is neg... not sure how to fix it...though
 # loglike = kf.kalmanfilter(pars=pars)
 # print(loglike)
 
 # #Finding nice seeds that fulfill pos eigen values and pos det(S):
-nice_seeds={'i':[], 'initialpars':[],'optpars':[], 'optloglike':[]}
+nice_seeds={'i':[0], 'initialpars':[jacobpars], 'initialloglike':[kf.kalmanfilter(pars=jacobpars)], 'optpars':[], 'optloglike':[]}
 
-i=0
+i=1
 print('finding nice_seeds')
-while len(nice_seeds['i'])<10:
+while len(nice_seeds['i'])<5:
     np.random.seed(i)
     initialpars=np.random.uniform(-0.5,0.5,27)
     loglikefind = kf.kalmanfilter(pars=initialpars)
-    print(i)
-    if loglikefind!=999999:
-        if loglikefind!=888888:
-            print(f'i: {i}, found: {len(nice_seeds["i"])}, loglike: {loglikefind}')
-            nice_seeds['i'].append(i)
-            nice_seeds['initialpars'].append(initialpars)
-            break
+    if loglikefind<888888:
+        print(f'i: {i}, found: {len(nice_seeds["i"])}, loglike: {loglikefind}')
+        nice_seeds['i'].append(i)
+        nice_seeds['initialpars'].append(initialpars)
+        nice_seeds['initialloglike'].append(loglikefind)
+            
     i+=1
 
-print(pd.DataFrame(nice_seeds))
-# print(nice_seeds)
+print(nice_seeds['i'],nice_seeds['initialloglike'])
 
-## Q12
+
+# Q12
 # ML estimation
-# # # MLEstimation = ML(kf.kalmanfilter(pars), pars)
-# # # final_parameters = MLEstimation.x
-# # # print(final_parameters)
-# # # print(MLEstimation.fun)
+# # from scipy import optimize
+
+# # def ML(initguess):
+# #     f = optimize.minimize(fun=lambda pars: kf.kalmanfilter(pars), x0=initguess, method='nelder-mead')
+# #     return f
+
+# # for pars in nice_seeds['initialpars']:
+# #     print('OPTIMIZING')
+# #     MLEstimation = ML(pars)
+# #     nice_seeds['optpars'].append(MLEstimation.x)
+# #     nice_seeds['optloglike'].append(MLEstimation.fun)
+
+# # print(nice_seeds['i'],nice_seeds['initialloglike'],nice_seeds['optloglike'])
 
 
 ## Q13 # here we need to use the parameters after the minimization and re-build the model implied yields with
