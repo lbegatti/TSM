@@ -133,7 +133,7 @@ class KalmanFilter(NelsonSiegel):
                                      tauList=[2, 3, 5, 7, 10])
         ANom = nelsonSiegelN.Avector()
         AReal = nelsonSiegelR.Avector()
-        self.A = np.array([ANom, AReal]).reshape(1, 10)
+        self.A = np.array([ANom, AReal]).ravel()
         self.Bmatrix = np.zeros(40).reshape(10, 4)
         self.Bmatrix[0:5, 0:2] = nelsonSiegelN.Bmatrix()
         self.Bmatrix[5:10, 2:4] = nelsonSiegelR.Bmatrix()
@@ -186,20 +186,21 @@ class KalmanFilter(NelsonSiegel):
         self.condUncCov()
         self.calcFC()
         
-        self.Xt_1 = self.Theta
-        self.Pt_1 = self.unconVar
+        self.Xt = self.Theta
+        self.Pt = self.unconVar
         for o in range(self.obs):
             # prediction step
             # print(o, self.obs)
             # print(self.Xt_1)
             # print(self.Pt_1)
-            self.Xt_1 = (np.dot(self.Ft, self.Xt_1) + self.Ct)
-            self.Pt_1 = (np.dot(self.Ft, np.dot(self.Pt_1, self.Ft.T)) + self.unconVar)
+            self.Xt_1 = (np.dot(self.Ft, self.Xt) + self.Ct)
+            self.Pt_1 = (np.dot(self.Ft, np.dot(self.Pt, self.Ft.T)) + self.unconVar)
             # model implied yields
-            self.yt = -self.A + (np.dot(-self.Bmatrix, self.Xt_1))
-
+            
+            self.yt = np.array(self.observedyield.iloc[o].values)[0]
+            
             # residuals
-            self.res = (np.array(self.observedyield.iloc[o]) - self.yt).T
+            self.res = self.yt - self.A - self.Bmatrix @ self.Xt_1
 
             # cov matrix prefit residuals
             self.S = self.H + np.dot(self.Bmatrix, np.dot(self.Pt_1, self.Bmatrix.T))
@@ -216,12 +217,12 @@ class KalmanFilter(NelsonSiegel):
 
                 # updated step
                 self.Xt = self.Xt_1 + np.dot(self.gainMatrix, self.res)
-                self.Pt = np.dot(np.eye(4), self.Pt_1) - np.dot(self.gainMatrix, np.dot(self.Bmatrix, self.Pt_1)).real
+                self.Pt = np.dot(np.eye(4)-np.dot(self.gainMatrix, self.Bmatrix),self.Pt_1)
 
                 # log likelihood for each obs step
                 self.loglike += - 0.5 * (
                         np.log(self.detS) + np.dot(self.res.T, np.dot(self.Sinv, self.res)))
-            
+
             else:
                 # print('Determinant is not-positive.') #prints to much
                 return 888888
