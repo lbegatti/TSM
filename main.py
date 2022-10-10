@@ -1,9 +1,11 @@
 # Packages
+from typing import final
 import numpy as np
 import pandas as pd
 from scipy import optimize
 import logging
 import time
+from os.path import exists
 
 # classes
 from datamanipulation import dataManipulation
@@ -148,10 +150,10 @@ nice_seeds = {'i': [0], 'initialpars': [jacobpars], 'initialloglike': [jacobresu
 
 i = 1
 print('finding nice_seeds')
-while len(nice_seeds['i']) < 4:
+while len(nice_seeds['i']) < 5:
     np.random.seed(i)
     #print(i, end='\r')
-    initialpars = np.random.uniform(-0.5, 0.5, 27)
+    initialpars = jacobpars + np.random.uniform(-0.1, 0.1, 27) #adding jiggle
     loglikefind = kf.kalmanfilter(pars=initialpars)
     if loglikefind < 888888:
         print(f'i: {i}, found: {len(nice_seeds["i"])}, loglike: {loglikefind}')
@@ -159,8 +161,8 @@ while len(nice_seeds['i']) < 4:
         nice_seeds['initialpars'].append(initialpars)
         nice_seeds['initialloglike'].append(loglikefind)
     i += 1
-    if len(nice_seeds['i']) == 3:
-        break
+    # if len(nice_seeds['i']) == 3:
+    #     break
 
 print(nice_seeds['i'], nice_seeds['initialloglike'])
 
@@ -171,34 +173,51 @@ print(nice_seeds['i'], nice_seeds['initialloglike'])
 # def ML(initguess):
 #    f = optimize.minimize(fun=lambda pars: kf.kalmanfilter(pars=pars), x0=initguess, method='nelder-mead')
 #    return f
-
-startstamp = time.time()
-for i, pars in enumerate(nice_seeds['initialpars']):
-    logger.info(f'Optimizing seed {i} out of {len(nice_seeds[list(nice_seeds.keys())[0]])-1}...')
-    MLEstimation = optimize.minimize(fun=lambda params: kf.kalmanfilter(pars=pars), x0=pars, method='nelder-mead')
-    nice_seeds['optpars'].append(MLEstimation.x)
-    nice_seeds['optloglike'].append(MLEstimation.fun)
-    timestamp = time.time()
-    logger.info(time.strftime('%H:%M:%S', time.gmtime(timestamp - startstamp)) + ", " +
+if exists('Output/final_opt_params.txt'):
+    print("Final paramaters exists will not optimize")
+else:
+    startstamp = time.time()
+    for i, pars in enumerate(nice_seeds['initialpars']):
+        logger.info(f'Optimizing seed {i} out of {len(nice_seeds[list(nice_seeds.keys())[0]])-1}...')
+        MLEstimation = optimize.minimize(fun=lambda params: kf.kalmanfilter(pars=params), x0=pars, method='nelder-mead')
+        nice_seeds['optpars'].append(MLEstimation.x)
+        nice_seeds['optloglike'].append(MLEstimation.fun)
+        timestamp = time.time()
+        logger.info(time.strftime('%H:%M:%S', time.gmtime(timestamp - startstamp)) + ", " +
+                    time.strftime('%H:%M:%S', time.localtime(time.time())))
+    endstamp = time.time()
+    logger.info("ALL DONE\n")
+    logger.info(time.strftime('%H:%M:%S', time.gmtime(endstamp - startstamp)) + ", " +
                 time.strftime('%H:%M:%S', time.localtime(time.time())))
-endstamp = time.time()
-logger.info("ALL DONE\n")
-logger.info(time.strftime('%H:%M:%S', time.gmtime(endstamp - startstamp)) + ", " +
-            time.strftime('%H:%M:%S', time.localtime(time.time())))
 
-print(nice_seeds['i'], nice_seeds['initialloglike'], nice_seeds['optloglike'])
+    print(nice_seeds['i'], nice_seeds['initialloglike'], nice_seeds['optloglike'])
 
 # I GOT THIS XD : [0, 76, 77] [-4554.554683627952, -3869.3091365847804, 878630.5994460909] [-23715964.692126855, -23715279.44657981, -19133138.82950106]
 
 print('===============Q12===============')
-final_opt_params = nice_seeds['optpars'][1]
+if exists('Output/final_opt_params.txt'):
+    filehandler = open('Output/final_opt_params.txt', 'rb')
+    final_opt_params=[]
+    with open('Output/final_opt_params.txt', 'r') as file:
+        for line in file:
+            curr_place=line[:-1]
+            final_opt_params.append(float(curr_place))
+
+else:
+    final_opt_params = nice_seeds['optpars'][0]
+    with open('Output/final_opt_params.txt', 'w') as filehandle:
+        for param in final_opt_params:
+            filehandle.write(f'{param}\n')
+
 print(final_opt_params)
 finalXt, finalPt, finalImplYields, finalRes, finalK, finalTheta, finalSigma, finalA, finalBmatrix, \
-    finalLambda_N, finalLambda_R = kf.kalmanFilterFinal(final_opt_params)
+    finalLambda_N, finalLambda_R = kf.kalmanFilterFinal(jacobpars)
 
 print('===============Q13===============')
+
 # here we need to use the parameters after the minimization and re-build the model implied yields with A and B.
-#rmse = RMSE(observedYield=yieldNR, modelYield=finalImplYields, obs=len(yieldNR))
+rmse = RMSE(observedYield=yieldNR, modelYield=finalImplYields, obs=len(yieldNR))
+print(rmse)
 
 print('===============Q14===============')
 ## Q14 using rtN=LNt +StN,rtR=LRt +SRt that come from Xt it should be doable,

@@ -5,7 +5,6 @@ import pandas as pd
 import numpy as np
 from scipy import optimize
 
-
 class KalmanFilter(NelsonSiegel):
     def __init__(self, observedyield: pd.DataFrame, obs: int, timestep: float):
         self.implyields = None
@@ -128,9 +127,9 @@ class KalmanFilter(NelsonSiegel):
             return False
 
     def calcAB(self):
-        nelsonSiegelN = NelsonSiegel(Lambda=self.lambda_N, sigmaS=self.sigma_NS, sigmaL=self.sigma_NL, Xt=self.Theta,
+        nelsonSiegelN = NelsonSiegel(Lambda=self.lambda_N, sigmaS=self.sigma_NS, sigmaL=self.sigma_NL, Xt=self.Theta[0:2], #only the two first
                                      tauList=[2, 3, 5, 7, 10])
-        nelsonSiegelR = NelsonSiegel(Lambda=self.lambda_R, sigmaL=self.sigma_RL, sigmaS=self.sigma_RS, Xt=self.Theta,
+        nelsonSiegelR = NelsonSiegel(Lambda=self.lambda_R, sigmaL=self.sigma_RL, sigmaS=self.sigma_RS, Xt=self.Theta[2:], #only the two last
                                      tauList=[2, 3, 5, 7, 10])
         ANom = nelsonSiegelN.Avector()
         AReal = nelsonSiegelR.Avector()

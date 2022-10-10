@@ -39,5 +39,5 @@ def plotFilteredStateVariable(Xt, Yt):
 
 
 def RMSE(observedYield, modelYield, obs):
-    rmse = np.sqrt((1 / obs) * [np.sum((modelYield.iloc[i] - observedYield.iloc[i]) ** 2) for i in range(obs)])
+    rmse = np.sqrt((1 / obs) * np.array([np.sum((modelYield.iloc[i] - observedYield.iloc[i]) ** 2) for i in range(obs)]))
     return rmse
