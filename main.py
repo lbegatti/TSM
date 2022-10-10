@@ -133,7 +133,6 @@ jacobpars = np.array([5.2740, 9.0130, 0.0, 0.0,
                       -0.2848, 0.5730, 0.0, 0.0,
                       0.0, 0.0, 5.2740, 9.0130,
                       0.0, 0.0, -0.2848, 0.5730,  # KP
-
                       0.0, 0.0, 0.0, 0.0,  # thetaP
                       0.0154, 0.0117, 0.0154, 0.0117,  # sigma
                       0.8244, .08244, 0.1
@@ -173,13 +172,13 @@ print(nice_seeds['i'], nice_seeds['initialloglike'])
 # def ML(initguess):
 #    f = optimize.minimize(fun=lambda pars: kf.kalmanfilter(pars=pars), x0=initguess, method='nelder-mead')
 #    return f
-if exists('Output/final_opt_params.txt'):
+if False:#exists('Output/final_opt_params.txt'):
     print("Final paramaters exists will not optimize")
 else:
     startstamp = time.time()
     for i, pars in enumerate(nice_seeds['initialpars']):
         logger.info(f'Optimizing seed {i} out of {len(nice_seeds[list(nice_seeds.keys())[0]])-1}...')
-        MLEstimation = optimize.minimize(fun=lambda params: kf.kalmanfilter(pars=params), x0=pars, method='nelder-mead')
+        MLEstimation = optimize.minimize(fun=lambda params: kf.kalmanfilter(pars=params), x0=pars, method='nelder-mead') 
         nice_seeds['optpars'].append(MLEstimation.x)
         nice_seeds['optloglike'].append(MLEstimation.fun)
         timestamp = time.time()
@@ -195,7 +194,7 @@ else:
 # I GOT THIS XD : [0, 76, 77] [-4554.554683627952, -3869.3091365847804, 878630.5994460909] [-23715964.692126855, -23715279.44657981, -19133138.82950106]
 
 print('===============Q12===============')
-if exists('Output/final_opt_params.txt'):
+if False:#exists('Output/final_opt_params.txt'):
     filehandler = open('Output/final_opt_params.txt', 'rb')
     final_opt_params=[]
     with open('Output/final_opt_params.txt', 'r') as file:
@@ -204,14 +203,14 @@ if exists('Output/final_opt_params.txt'):
             final_opt_params.append(float(curr_place))
 
 else:
-    final_opt_params = nice_seeds['optpars'][0]
+    final_opt_params = nice_seeds['optpars'][np.argmin(nice_seeds['optloglike'])]
     with open('Output/final_opt_params.txt', 'w') as filehandle:
         for param in final_opt_params:
             filehandle.write(f'{param}\n')
 
 print(final_opt_params)
 finalXt, finalPt, finalImplYields, finalRes, finalK, finalTheta, finalSigma, finalA, finalBmatrix, \
-    finalLambda_N, finalLambda_R = kf.kalmanFilterFinal(jacobpars)
+    finalLambda_N, finalLambda_R = kf.kalmanFilterFinal(final_opt_params)
 
 print('===============Q13===============')
 
