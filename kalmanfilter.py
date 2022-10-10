@@ -1,9 +1,10 @@
 from typing import Any
 
-from nelsonSiegel import NelsonSiegel
-import pandas as pd
 import numpy as np
-from scipy import optimize
+import pandas as pd
+
+from nelsonSiegel import NelsonSiegel
+
 
 class KalmanFilter(NelsonSiegel):
     def __init__(self, observedyield: pd.DataFrame, obs: int, timestep: float):
@@ -127,9 +128,11 @@ class KalmanFilter(NelsonSiegel):
             return False
 
     def calcAB(self):
-        nelsonSiegelN = NelsonSiegel(Lambda=self.lambda_N, sigmaS=self.sigma_NS, sigmaL=self.sigma_NL, Xt=self.Theta[0:2], #only the two first
+        nelsonSiegelN = NelsonSiegel(Lambda=self.lambda_N, sigmaS=self.sigma_NS, sigmaL=self.sigma_NL,
+                                     Xt=self.Theta[0:2],  # only the two first
                                      tauList=[2, 3, 5, 7, 10])
-        nelsonSiegelR = NelsonSiegel(Lambda=self.lambda_R, sigmaL=self.sigma_RL, sigmaS=self.sigma_RS, Xt=self.Theta[2:], #only the two last
+        nelsonSiegelR = NelsonSiegel(Lambda=self.lambda_R, sigmaL=self.sigma_RL, sigmaS=self.sigma_RS,
+                                     Xt=self.Theta[2:],  # only the two last
                                      tauList=[2, 3, 5, 7, 10])
         ANom = nelsonSiegelN.Avector()
         AReal = nelsonSiegelR.Avector()
@@ -143,16 +146,17 @@ class KalmanFilter(NelsonSiegel):
         # Cond and uncond covariance matrix
         ## S-overline matrix
         self.Sbar = np.dot(np.dot(np.linalg.pinv(self.eigvecK), np.dot(self.Sigma, self.Sigma.T)),
-                           np.linalg.pinv(self.eigvecK).T).real #
+                           np.linalg.pinv(self.eigvecK).T).real  #
         # self.Sbar = self.Sbar.real
 
         ## Step 2: V-overline
-        self.Vbar = np.zeros((4,4), dtype=complex)
+        self.Vbar = np.zeros((4, 4), dtype=complex)
         for i in range(0, len(self.Sbar)):
             for j in range(0, len(self.Sbar)):
-                self.Vbar[i, j] = (self.Sbar[i, j] / (self.eigvalK[i] + self.eigvalK[j])) * (1 - np.exp(-(self.eigvalK[i] + self.eigvalK[j]) * self.dt))
+                self.Vbar[i, j] = (self.Sbar[i, j] / (self.eigvalK[i] + self.eigvalK[j])) * (
+                            1 - np.exp(-(self.eigvalK[i] + self.eigvalK[j]) * self.dt))
 
-        self.VbarUnc = np.zeros((4,4), dtype=complex)
+        self.VbarUnc = np.zeros((4, 4), dtype=complex)
         for i in range(0, len(self.Sbar)):
             for j in range(0, len(self.Sbar)):
                 self.VbarUnc[i, j] = (self.Sbar[i, j] / (self.eigvalK[i] + self.eigvalK[j]))
@@ -161,8 +165,8 @@ class KalmanFilter(NelsonSiegel):
         # self.Vbar = self.Vbar
         # self.VbarUnc = self.VbarUnc
 
-        self.condVar = np.dot(self.eigvecK, np.dot(self.Vbar, self.eigvecK.T)).real #QVbar_dtQT
-        self.unconVar = np.dot(self.eigvecK, np.dot(self.VbarUnc, self.eigvecK.T)).real #QVbar_infQT
+        self.condVar = np.dot(self.eigvecK, np.dot(self.Vbar, self.eigvecK.T)).real  # QVbar_dtQT
+        self.unconVar = np.dot(self.eigvecK, np.dot(self.VbarUnc, self.eigvecK.T)).real  # QVbar_infQT
         self.uncMean = self.Theta
 
     def calcFC(self):
@@ -179,7 +183,7 @@ class KalmanFilter(NelsonSiegel):
 
     def kalmanfilter(self, pars):
         self.paramToOptimize(params=pars)
-        self.loglike=0
+        self.loglike = 0
         if not self.checkEigen():
             return 999999
         self.calcAB()
@@ -231,7 +235,7 @@ class KalmanFilter(NelsonSiegel):
 
     def kalmanFilterFinal(self, pars) -> tuple[Any, ...]:
         self.paramToOptimize(params=pars)
-        self.loglike=0
+        self.loglike = 0
         self.checkEigen()
         self.calcAB()
         self.condUncCov()

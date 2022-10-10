@@ -151,8 +151,8 @@ i = 1
 print('finding nice_seeds')
 while len(nice_seeds['i']) < 5:
     np.random.seed(i)
-    #print(i, end='\r')
-    initialpars = jacobpars + np.random.uniform(-0.1, 0.1, 27) #adding jiggle
+    # print(i, end='\r')
+    initialpars = jacobpars + np.random.uniform(-0.1, 0.1, 27)  # adding jiggle
     loglikefind = kf.kalmanfilter(pars=initialpars)
     if loglikefind < 888888:
         print(f'i: {i}, found: {len(nice_seeds["i"])}, loglike: {loglikefind}')
@@ -172,13 +172,13 @@ print(nice_seeds['i'], nice_seeds['initialloglike'])
 # def ML(initguess):
 #    f = optimize.minimize(fun=lambda pars: kf.kalmanfilter(pars=pars), x0=initguess, method='nelder-mead')
 #    return f
-if False:#exists('Output/final_opt_params.txt'):
+if False:  # exists('Output/final_opt_params.txt'):
     print("Final paramaters exists will not optimize")
 else:
     startstamp = time.time()
     for i, pars in enumerate(nice_seeds['initialpars']):
-        logger.info(f'Optimizing seed {i} out of {len(nice_seeds[list(nice_seeds.keys())[0]])-1}...')
-        MLEstimation = optimize.minimize(fun=lambda params: kf.kalmanfilter(pars=params), x0=pars, method='nelder-mead') 
+        logger.info(f'Optimizing seed {i} out of {len(nice_seeds[list(nice_seeds.keys())[0]]) - 1}...')
+        MLEstimation = optimize.minimize(fun=lambda params: kf.kalmanfilter(pars=params), x0=pars, method='nelder-mead')
         nice_seeds['optpars'].append(MLEstimation.x)
         nice_seeds['optloglike'].append(MLEstimation.fun)
         timestamp = time.time()
@@ -191,15 +191,16 @@ else:
 
     print(nice_seeds['i'], nice_seeds['initialloglike'], nice_seeds['optloglike'])
 
-# I GOT THIS XD : [0, 76, 77] [-4554.554683627952, -3869.3091365847804, 878630.5994460909] [-23715964.692126855, -23715279.44657981, -19133138.82950106]
+# I GOT THIS XD : [0, 76, 77] [-4554.554683627952, -3869.3091365847804, 878630.5994460909] [-23715964.692126855,
+# -23715279.44657981, -19133138.82950106]
 
 print('===============Q12===============')
-if False:#exists('Output/final_opt_params.txt'):
+if False:  # exists('Output/final_opt_params.txt'):
     filehandler = open('Output/final_opt_params.txt', 'rb')
-    final_opt_params=[]
+    final_opt_params = []
     with open('Output/final_opt_params.txt', 'r') as file:
         for line in file:
-            curr_place=line[:-1]
+            curr_place = line[:-1]
             final_opt_params.append(float(curr_place))
 
 else:
@@ -210,14 +211,36 @@ else:
 
 print(final_opt_params)
 finalXt, finalPt, finalImplYields, finalRes, finalK, finalTheta, finalSigma, finalA, finalBmatrix, \
-    finalLambda_N, finalLambda_R = kf.kalmanFilterFinal(final_opt_params)
+finalLambda_N, finalLambda_R = kf.kalmanFilterFinal(final_opt_params)
 
 print('===============Q13===============')
 
 # here we need to use the parameters after the minimization and re-build the model implied yields with A and B.
-rmse = RMSE(observedYield=yieldNR, modelYield=finalImplYields, obs=len(yieldNR))
+rmse = RMSE(observedYield=yieldNR, modelYield=finalImplYields, obs=len(yieldNR), cols=len(yieldNR.columns))
 print(rmse)
 
 print('===============Q14===============')
 ## Q14 using rtN=LNt +StN,rtR=LRt +SRt that come from Xt it should be doable,
 # but we need to get the minimization correct first.
+
+# MOCK... just a draft.. i do not fully understand it
+"""rho1 = np.array([1, 1, -1, -1])
+
+
+def ODE(theta, k, B, sigma, rho_1):
+    AlphaPrime = (theta @ k).T @ B + 0.5 * B.T @ sigma @ B
+    BetaPrime = -rho_1 + k.T @ B
+    return AlphaPrime, BetaPrime
+
+
+def RG(tenor:[2,3,5,7,10]????, theta, k, beta, sigma, rho_1, timestep, obs):
+
+    theta0 = theta
+    k0 = k
+    beta0 = beta
+    sigma0 = sigma
+
+    for ob in range(obs):
+        k1, l1 = timestep * ODE(ob + 0.5 * timestep, theta0, k0, beta0, sigma0, rho_1)
+        k2, l2 = timestep * ODE(ob + 0.5 * timestep, theta0 + 0.5 * k1, k0 + 0.5 * k1 * l1, beta0 + 0.5 * k1 * l1,
+                                sigma0 + 0.5 * k1, rho_1 + 0.5 * l1)"""
