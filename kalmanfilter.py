@@ -244,13 +244,14 @@ class KalmanFilter(NelsonSiegel):
         self.Xt = self.Theta
         self.Pt = self.unconVar
         impliedYield_final = []
+        finalXdata = [self.Xt]
         for o in range(self.obs):
             self.Xt_1 = (np.dot(self.Ft, self.Xt) + self.Ct)
             self.Pt_1 = (np.dot(self.Ft, np.dot(self.Pt, self.Ft.T)) + self.unconVar)
             # observed yields
             self.yt = np.array(self.observedyield.iloc[o].values)[0]
             # model implied yields
-            self.implyields = - self.A - self.Bmatrix @ self.Xt_1
+            self.implyields =  self.A + self.Bmatrix @ self.Xt_1
             impliedYield_final.append(self.implyields)
             # residuals
             self.res = self.yt - self.A - self.Bmatrix @ self.Xt_1
@@ -264,8 +265,10 @@ class KalmanFilter(NelsonSiegel):
             self.gainMatrix = np.dot(self.Pt_1, np.dot(self.Bmatrix.T, self.Sinv))
             # updated step
             self.Xt = self.Xt_1 + np.dot(self.gainMatrix, self.res)
+            finalXdata.append(self.Xt)
             self.Pt = np.dot(np.eye(4) - np.dot(self.gainMatrix, self.Bmatrix), self.Pt_1)
 
         impliedYield_final_df = pd.DataFrame(impliedYield_final)
+        finalXdata = pd.DateFrame(finalXdata)
         return self.Xt, self.Pt, impliedYield_final_df, self.res, self.K, self.Theta, self.Sigma, \
-               self.A, self.Bmatrix, self.lambda_N, self.lambda_R
+               self.A, self.Bmatrix, self.lambda_N, self.lambda_R, finalXdata

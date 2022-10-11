@@ -151,8 +151,7 @@ i = 1
 print('finding nice_seeds')
 while len(nice_seeds['i']) < 5:
     np.random.seed(i)
-    # print(i, end='\r')
-    initialpars = jacobpars + np.random.uniform(-0.1, 0.1, 27)  # adding jiggle
+    initialpars = jacobpars + np.append(np.random.uniform(-0.1, 0.1, 26),0)  # adding jiggle
     loglikefind = kf.kalmanfilter(pars=initialpars)
     if loglikefind < 888888:
         print(f'i: {i}, found: {len(nice_seeds["i"])}, loglike: {loglikefind}')
@@ -172,14 +171,15 @@ print(nice_seeds['i'], nice_seeds['initialloglike'])
 # def ML(initguess):
 #    f = optimize.minimize(fun=lambda pars: kf.kalmanfilter(pars=pars), x0=initguess, method='nelder-mead')
 #    return f
-if False:  # exists('Output/final_opt_params.txt'):
+if exists('Output/final_opt_params.txt'):
     print("Final paramaters exists will not optimize")
 else:
     startstamp = time.time()
     for i, pars in enumerate(nice_seeds['initialpars']):
         logger.info(f'Optimizing seed {i} out of {len(nice_seeds[list(nice_seeds.keys())[0]]) - 1}...')
-        MLEstimation = optimize.minimize(fun=lambda params: kf.kalmanfilter(pars=params), x0=pars, method='nelder-mead')
+        MLEstimation = optimize.minimize(fun=lambda params: kf.kalmanfilter(pars=params), x0=pars, method='nelder-mead', options={'fatol':1})
         nice_seeds['optpars'].append(MLEstimation.x)
+        print(MLEstimation.fun)
         nice_seeds['optloglike'].append(MLEstimation.fun)
         timestamp = time.time()
         logger.info(time.strftime('%H:%M:%S', time.gmtime(timestamp - startstamp)) + ", " +
@@ -195,8 +195,8 @@ else:
 # -23715279.44657981, -19133138.82950106]
 
 print('===============Q12===============')
-if False:  # exists('Output/final_opt_params.txt'):
-    filehandler = open('Output/final_opt_params.txt', 'rb')
+if exists('Output/final_opt_params.txt'):
+    filehandler = open('Output/final_opt_params.txt', 'r')
     final_opt_params = []
     with open('Output/final_opt_params.txt', 'r') as file:
         for line in file:
@@ -211,7 +211,7 @@ else:
 
 print(final_opt_params)
 finalXt, finalPt, finalImplYields, finalRes, finalK, finalTheta, finalSigma, finalA, finalBmatrix, \
-finalLambda_N, finalLambda_R = kf.kalmanFilterFinal(final_opt_params)
+finalLambda_N, finalLambda_R, finalXdata = kf.kalmanFilterFinal(final_opt_params)
 
 print('===============Q13===============')
 
@@ -244,3 +244,47 @@ def RG(tenor:[2,3,5,7,10]????, theta, k, beta, sigma, rho_1, timestep, obs):
         k1, l1 = timestep * ODE(ob + 0.5 * timestep, theta0, k0, beta0, sigma0, rho_1)
         k2, l2 = timestep * ODE(ob + 0.5 * timestep, theta0 + 0.5 * k1, k0 + 0.5 * k1 * l1, beta0 + 0.5 * k1 * l1,
                                 sigma0 + 0.5 * k1, rho_1 + 0.5 * l1)"""
+print('===============Q15===============')
+rho1 = np.array([1, 1, -1, -1])
+
+
+def alphamark(beta, k, theta, sigma):
+    return (k @ theta).T @ beta + 0.5 * beta.T @ sigma @ sigma.T @ beta
+
+def betamark(k, beta, rho_1):
+    # AlphaPrime = (theta @ k).T @ B + 0.5 * B.T @ sigma @ B
+    return -rho_1 + k.T @ beta
+
+
+def RG(funalpha, funbeta, timestep, wa, wb, tau):
+    alpha = [wa]
+    beta = [wb]
+    obs = int(tau/timestep)
+    for ob in range(obs):
+        k1 = timestep * funbeta(beta[ob])
+        k2 = timestep * funbeta(beta[ob] + 0.5 * k1)
+        k3 = timestep * funbeta(beta[ob] + 0.5 * k2)
+        k4 = timestep * funbeta(beta[ob] + k3)
+
+        beta.append(beta[ob] + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4))
+
+        l1 = timestep * funalpha(beta[ob])
+        l2 = timestep * funalpha(beta[ob] + 0.5 * k1)
+        l3 = timestep * funalpha(beta[ob] + 0.5 * k2)
+        l4 = timestep * funalpha(beta[ob] + k3)
+
+        alpha.append(alpha[ob] + (1 / 6) * (l1 + 2 * l2 + 2 * l3 + l4))
+    return alpha, beta
+
+
+RKalpha, RKbeta = [],[]
+
+
+tenors = [2,5,10]
+for ten in tenors: 
+    runge=RG(funalpha=lambda B:alphamark(beta=B, k=finalK, theta=finalTheta, sigma=finalSigma), funbeta=lambda B:betamark(k=finalK, beta=B, rho_1=rho1), timestep=1/12, wa=0, wb=np.zeros(4), tau=ten)
+    RKalpha.append(runge[0])
+    RKbeta.append(runge[1])
+
+
+Rprint("done")

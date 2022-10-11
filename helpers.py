@@ -38,6 +38,5 @@ def RMSE(observedYield, modelYield, obs, cols):
     # mutate the name of the columns
     # observedYield = observedYield.rename(
     #    columns={x: y for x, y in zip(observedYield.columns, range(0, len(observedYield.columns)))})
-    rmse = np.sqrt(
-        (1 / obs) * np.array([np.sum((modelYield.iloc[:, i] - observedYield.iloc[:, i]) ** 2) for i in range(cols)]))
+    rmse = np.sqrt((1 / obs) * np.array([np.sum((modelYield.iloc[:, i] - observedYield.iloc[:, i]) ** 2) for i in range(cols)]))
     return rmse
