@@ -24,7 +24,7 @@ def alphamark(beta):
 def runge(endtime, beta0list, alpha0, h = 1/12):
     #Choose endtime = years, beta0list = [0,0,0,0] and alpha0=[0]
     # Returns a dict with keys as timestep ie 1/12, 2/12...
-    #and first 4 values as betavalues and last as alphavalue
+    #and first 4 values as betavalues and last as alphavalue.
     n=(int)((endtime-beta0list[0])/h)
     betdict = {0: np.append(beta0list,alpha0)}
     for i in range(1,n+1):
