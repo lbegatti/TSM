@@ -1,14 +1,12 @@
 import numpy as np
 import pandas as pd
 
-KQ = np.array([[0,0,0,0],[0,0.5,0,0],[0,0,0,0],[0,0,0,0.55]])
-TQ = np.array([[0],[0],[0],[0]])
-Sig = np.array([[0.005,0,0,0],[0,0.01,0,0],[0,0,0.004,0],[0,0,0,0.015]])
-H0 = Sig**2
-L1 = np.array([[1], [2], [3], [4]])
-L2 = np.array([[1,2,3,4],[1,2,3,4],[1,2,3,4],[1,2,3,4]])
-KP = KQ-np.matmul(Sig,L2)
-TPKPTrans = np.transpose(np.matmul(KQ,TQ)+np.matmul(Sig,L1))
+# for i in range(len(tenors)):
+TP = finalTheta
+Sig = finalSigma
+H0 = Sig @ Sig.T
+KP = finalK
+TPKPTrans = TP @ KP.T
 rho1 = np.array([1,1,-1,-1])
 
 def betamark(beta):
@@ -40,7 +38,7 @@ def runge(endtime, beta0list, alpha0, h = 1/12, beta=False, alpha=False):
         k4a = h * alphamark(beta0list+k3a)
 
         beta0list = beta0list + (1.0/6.0)*(k1b+2*k2b+2*k3b+k4b)
-        alpha0 = alpha0 + (1.0/6.0)*(k1a+2*k2a+2*k3a+k4a)[0]
+        alpha0 = alpha0 + (1.0/6.0)*(k1a+2*k2a+2*k3a+k4a)
 
         pair = np.append(beta0list, alpha0)
         betdict.update({h*i: pair})
@@ -56,16 +54,16 @@ def runge(endtime, beta0list, alpha0, h = 1/12, beta=False, alpha=False):
     else:
         return betdict
 
-alphavalues = runge(endtime = 212/12, beta0list=[0,0,0,0], alpha0=0, alpha = True)
-betavalues = runge(endtime = 212/12, beta0list=[0,0,0,0], alpha0=0, beta = True)
+alphavalues = runge(endtime = 10, beta0list=[0,0,0,0], alpha0=0, alpha = True)
+betavalues = runge(endtime = 10, beta0list=[0,0,0,0], alpha0=0, beta = True)
 
 
-Xt = np.array([0.02, -0.02, 0.025, -0.025])
+Xt = finalXdata
 
 def mod_imp_inf(tau):
     list_of_imp_inf = []
-    for i in range(len(alphavalues)):
-        result = (alphavalues[i]+np.matmul(np.transpose(betavalues[i]),Xt))/(-tau)
+    for i in range(len(finalXdata)):
+        result = (alphavalues[-1]+np.matmul(np.transpose(betavalues[-1]),finalXdata.iloc[i]))/(-tau)
         list_of_imp_inf.append(result)
     return list_of_imp_inf
 

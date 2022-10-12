@@ -2,7 +2,8 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-
+import sys
+from scipy.linalg import expm
 from nelsonSiegel import NelsonSiegel
 
 
@@ -145,8 +146,7 @@ class KalmanFilter(NelsonSiegel):
 
         # Cond and uncond covariance matrix
         ## S-overline matrix
-        self.Sbar = np.dot(np.dot(np.linalg.pinv(self.eigvecK), np.dot(self.Sigma, self.Sigma.T)),
-                           np.linalg.pinv(self.eigvecK).T).real  #
+        self.Sbar = (np.linalg.inv(self.eigvecK) @ self.Sigma @ self.Sigma.T @ np.linalg.inv(self.eigvecK).T).real  #
         # self.Sbar = self.Sbar.real
 
         ## Step 2: V-overline
@@ -165,21 +165,13 @@ class KalmanFilter(NelsonSiegel):
         # self.Vbar = self.Vbar
         # self.VbarUnc = self.VbarUnc
 
-        self.condVar = np.dot(self.eigvecK, np.dot(self.Vbar, self.eigvecK.T)).real  # QVbar_dtQT
-        self.unconVar = np.dot(self.eigvecK, np.dot(self.VbarUnc, self.eigvecK.T)).real  # QVbar_infQT
+        self.condVar = (self.eigvecK @ self.Vbar @ self.eigvecK.T).real  # QVbar_dtQT
+        self.unconVar = (self.eigvecK @ self.VbarUnc @ self.eigvecK.T).real  # QVbar_infQT
         self.uncMean = self.Theta
 
     def calcFC(self):
-        self.Ft = np.exp(-self.K * self.dt)
-        self.Ct = np.dot(np.eye(4), self.Theta) - np.dot(np.exp(-self.K * self.dt), self.Theta)
-        # self.Ct=self.Theta-np.dot(np.exp(-self.K*self.dt),self.Theta)
-
-    # def runSetup(self):
-    #   self.paramToOptimize(params=)
-    #    self.checkEigen()
-    #    self.calcAB()
-    #    self.condUncCov()
-    #    self.calcFC()
+        self.Ft = expm(-self.K * self.dt)
+        self.Ct = (np.eye(4) - self.Ft) @ self.Theta
 
     def kalmanfilter(self, pars):
         self.paramToOptimize(params=pars)
@@ -194,39 +186,35 @@ class KalmanFilter(NelsonSiegel):
         self.Pt = self.unconVar
         for o in range(self.obs):
             # prediction step
-            # print(o, self.obs)
-            # print(self.Xt_1)
-            # print(self.Pt_1)
-            self.Xt_1 = (np.dot(self.Ft, self.Xt) + self.Ct)
-            self.Pt_1 = (np.dot(self.Ft, np.dot(self.Pt, self.Ft.T)) + self.unconVar)
-            # model implied yields
-
-            self.yt = np.array(self.observedyield.iloc[o].values)[0]
+            self.Xt_1 = self.Ft @ self.Xt + self.Ct
+            self.Pt_1 = self.Ft @ self.Pt @ self.Ft.T + self.condVar
+            
+            # Observed implied yields
+            self.yt = np.array(self.observedyield.iloc[o].values)
 
             # residuals
             self.res = self.yt - self.A - self.Bmatrix @ self.Xt_1
 
             # cov matrix prefit residuals
-            self.S = self.H + np.dot(self.Bmatrix, np.dot(self.Pt_1, self.Bmatrix.T))
+            self.S = self.H + self.Bmatrix @ self.Pt_1 @ self.Bmatrix.T
 
             # det of cov matrix prefit residuals
             self.detS = np.linalg.det(self.S)
 
             if self.detS > 0:
                 # inverse of cov matrix
-                self.Sinv = np.linalg.pinv(self.S)
+                self.Sinv = np.linalg.inv(self.S)
 
                 # kalman gain matrix
-                self.gainMatrix = np.dot(self.Pt_1, np.dot(self.Bmatrix.T, self.Sinv))
+                self.gainMatrix = self.Pt_1 @ self.Bmatrix.T@self.Sinv
 
                 # updated step
-                self.Xt = self.Xt_1 + np.dot(self.gainMatrix, self.res)
-                self.Pt = np.dot(np.eye(4) - np.dot(self.gainMatrix, self.Bmatrix), self.Pt_1)
+                self.Xt = self.Xt_1 + self.gainMatrix @ self.res
+                self.Pt = self.Pt_1 - self.gainMatrix @ self.Bmatrix @ self.Pt_1
 
                 # log likelihood for each obs step
-                self.loglike += - 0.5 * (
-                        np.log(self.detS) + self.res.T @ self.Sinv @ self.res)
-
+                self.loglike += - 0.5 * (np.log(self.detS)+self.res.T @ self.Sinv @ self.res)
+                
             else:
                 # print('Determinant is not-positive.') #prints to much
                 return 888888
@@ -245,30 +233,50 @@ class KalmanFilter(NelsonSiegel):
         self.Pt = self.unconVar
         impliedYield_final = []
         finalXdata = [self.Xt]
+        
         for o in range(self.obs):
-            self.Xt_1 = (np.dot(self.Ft, self.Xt) + self.Ct)
-            self.Pt_1 = (np.dot(self.Ft, np.dot(self.Pt, self.Ft.T)) + self.unconVar)
-            # observed yields
-            self.yt = np.array(self.observedyield.iloc[o].values)[0]
+            # prediction step
+            self.Xt_1 = self.Ft @ self.Xt + self.Ct
+            self.Pt_1 = self.Ft @ self.Pt @ self.Ft.T + self.unconVar
+            
+            # Observed implied yields
+            self.yt = np.array(self.observedyield.iloc[o].values)
+
             # model implied yields
             self.implyields =  self.A + self.Bmatrix @ self.Xt_1
             impliedYield_final.append(self.implyields)
+
             # residuals
             self.res = self.yt - self.A - self.Bmatrix @ self.Xt_1
+
             # cov matrix prefit residuals
-            self.S = self.H + np.dot(self.Bmatrix, np.dot(self.Pt_1, self.Bmatrix.T))
+            self.S = self.H + self.Bmatrix @ self.Pt_1 @ self.Bmatrix.T
+
             # det of cov matrix prefit residuals
             self.detS = np.linalg.det(self.S)
-            # inverse of cov matrix
-            self.Sinv = np.linalg.pinv(self.S)
-            # kalman gain matrix
-            self.gainMatrix = np.dot(self.Pt_1, np.dot(self.Bmatrix.T, self.Sinv))
-            # updated step
-            self.Xt = self.Xt_1 + np.dot(self.gainMatrix, self.res)
-            finalXdata.append(self.Xt)
-            self.Pt = np.dot(np.eye(4) - np.dot(self.gainMatrix, self.Bmatrix), self.Pt_1)
+
+            if self.detS > 0:
+                # inverse of cov matrix
+                self.Sinv = np.linalg.inv(self.S)
+
+                # kalman gain matrix
+                self.gainMatrix = self.Pt_1 @ self.Bmatrix.T@self.Sinv
+
+                # updated step
+                self.Xt = self.Xt_1 + self.gainMatrix @ self.res
+                self.Pt = np.eye(4) @ self.Pt_1 - self.gainMatrix@ self.Bmatrix @ self.Pt_1
+
+                finalXdata.append(self.Xt)
+
+                # log likelihood for each obs step
+                self.loglike += - 0.5 * (np.log(self.detS)+self.res.T @ self.Sinv @ self.res)
+                
+
+            else:
+                # print('Determinant is not-positive.') #prints to much
+                return 888888
 
         impliedYield_final_df = pd.DataFrame(impliedYield_final)
-        finalXdata = pd.DateFrame(finalXdata)
+        finalXdata = pd.DataFrame(finalXdata)
         return self.Xt, self.Pt, impliedYield_final_df, self.res, self.K, self.Theta, self.Sigma, \
                self.A, self.Bmatrix, self.lambda_N, self.lambda_R, finalXdata
