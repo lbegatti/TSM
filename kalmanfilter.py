@@ -278,5 +278,4 @@ class KalmanFilter(NelsonSiegel):
 
         impliedYield_final_df = pd.DataFrame(impliedYield_final)
         finalXdata = pd.DataFrame(finalXdata)
-        return self.Xt, self.Pt, impliedYield_final_df, self.res, self.K, self.Theta, self.Sigma, \
-               self.A, self.Bmatrix, self.lambda_N, self.lambda_R, finalXdata
+        return impliedYield_final_df, self.K, self.Theta, self.Sigma, finalXdata

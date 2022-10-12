@@ -141,25 +141,24 @@ afnspars = np.array([5.2740, 9.0130, 0.0, 0.0,
 kf = KalmanFilter(observedyield=yieldNR, obs=len(yieldNR), timestep=1 / 12)
 afnsresults = kf.kalmanfilter(pars=afnspars)
 
-# somepars = np.array([0.8740, 0, 0.0, 0.0,                                                
-#                       0, 0.5730, 0.0, 0.0,
-#                       0.0, 0.0, 0.2740, 0.0,
-#                       0.0, 0.0, 0.0, 0.5730, #KP
-#                       0.2, -0.2, 0.1, -0.1,  #thetaP
-#                       0.0154, 0.0117, 0.0154, 0.0117, #sigma
-#                       0.8244, 0.08244, 0.1
-#                       ])
+somepars = np.array([0.0030, 0, 0.0, 0.0,                                                
+                      0, 0.5730, 0.0, 0.0,
+                      0.0, 0.0, 0.2740, 0.0,
+                      0.0, 0.0, 0.0, 0.5730, #KP
+                      0.0, 0.0, 0.0, 0.0,  #thetaP
+                      0.0154, 0.0117, 0.0154, 0.0117, #sigma
+                      0.2244, 0.28244, 0.007
+                      ])
 
-# kf = KalmanFilter(observedyield=yieldNR, obs=len(yieldNR), timestep=1 / 12)
-# someresults = kf.kalmanfilter(pars=somepars)
+someresults = kf.kalmanfilter(pars=somepars)
 
 # #Finding nice seeds that fulfill pos eigen values and pos det(S):
-nice_seeds = {'i': [0], 'initialpars': [afnspars], 'initialloglike': [afnsresults], 'optpars': [],
+nice_seeds = {'i': [0], 'initialpars': [somepars], 'initialloglike': [someresults], 'optpars': [],
               'optloglike': []}
 
 i = 2
 print('finding nice_seeds') #i.e. trying to bruteforce, not going so well
-while len(nice_seeds['i']) < 2:
+while len(nice_seeds['i']) < 1:
     np.random.seed(i)
     initialpars = afnspars + np.append(np.random.uniform(-0.1, 0.1, 26),0)  # adding jiggle
     loglikefind = kf.kalmanfilter(pars=initialpars)
@@ -177,17 +176,14 @@ print(nice_seeds['i'], nice_seeds['initialloglike'])
 # Q12
 # ML estimation
 
-# def ML(initguess):
-#    f = optimize.minimize(fun=lambda pars: kf.kalmanfilter(pars=pars), x0=initguess, method='nelder-mead')
-#    return f
-if exists('Output/final_opt_params.txt'):
+if False:#exists('Output/final_opt_params.txt'):
     print("Final paramaters exists will not optimize")
 else:
     startstamp = time.time()
     for i, pars in enumerate(nice_seeds['initialpars']):
         logger.info(f'Optimizing seed {i} out of {len(nice_seeds[list(nice_seeds.keys())[0]]) - 1}...')
         MLEstimation = optimize.minimize(fun=lambda params: kf.kalmanfilter(pars=params), x0=pars, method='nelder-mead',
-                                         options={'maxiter':10800, 'maxfev':10800})
+                                         options={'maxiter':2000, 'maxfev':10800, 'adaptive':True})
         # MLEstimation = optimize.differential_evolution(func=lambda params: kf.kalmanfilter(pars=params), bounds=[(-10,10)], x0=pars, maxiter=1000) #, method='nelder-mead'
                                          
         nice_seeds['optpars'].append(MLEstimation.x)
@@ -207,7 +203,7 @@ else:
 # -23715279.44657981, -19133138.82950106]
 
 print('===============Q12===============')
-if exists('Output/final_opt_params.txt'):
+if False:# exists('Output/final_opt_params.txt'):
     filehandler = open('Output/final_opt_params.txt', 'r')
     final_opt_params = []
     with open('Output/final_opt_params.txt', 'r') as file:
@@ -222,8 +218,7 @@ else:
             filehandle.write(f'{param}\n')
 
 print(final_opt_params)
-finalXt, finalPt, finalImplYields, finalRes, finalK, finalTheta, finalSigma, finalA, finalBmatrix, \
-finalLambda_N, finalLambda_R, finalXdata = kf.kalmanFilterFinal(final_opt_params)
+finalImplYields, finalK, finalTheta, finalSigma, finalXdata = kf.kalmanFilterFinal(final_opt_params)
 
 px.line(finalXdata).write_image('Output/FilteredStateVariables.png')
 
@@ -253,54 +248,66 @@ def betamark(k, beta, rho_1):
     # AlphaPrime = (theta @ k).T @ B + 0.5 * B.T @ sigma @ B
     return -rho_1 + k.T @ beta
 
-
-def RG(funalpha, funbeta, timestep, wa, wb, tau):
-    alpha = [wa]
-    beta = [wb]
-    # obs = int(tau/timestep)
-    obs=int(1/timestep*tau)
+def RK(funalpha, funbeta, timestep, wa, wb, tau, X):
+    # alpha = [wa]
+    # beta = [wb]
+    alpha = wa
+    beta = wb
+    obs = int(tau/timestep)
+    
     for ob in range(obs):
-        k1 = timestep * funbeta(beta[ob])
-        k2 = timestep * funbeta(beta[ob] + 0.5 * k1)
-        k3 = timestep * funbeta(beta[ob] + 0.5 * k2)
-        k4 = timestep * funbeta(beta[ob] + k3)
+        k1 = timestep * funbeta(beta)
+        k2 = timestep * funbeta(beta + 0.5 * k1)
+        k3 = timestep * funbeta(beta + 0.5 * k2)
+        k4 = timestep * funbeta(beta + k3)
 
-        beta.append(beta[ob] + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4))
+        l1 = timestep * funalpha(beta)
+        l2 = timestep * funalpha(beta + 0.5 * k1)
+        l3 = timestep * funalpha(beta + 0.5 * k2)
+        l4 = timestep * funalpha(beta + k3)
+        
+        # beta.append(beta[ob] + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4))
+        beta = beta + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
-        l1 = timestep * funalpha(beta[ob])
-        l2 = timestep * funalpha(beta[ob] + 0.5 * k1)
-        l3 = timestep * funalpha(beta[ob] + 0.5 * k2)
-        l4 = timestep * funalpha(beta[ob] + k3)
+        # alpha.append(alpha[ob] + (1 / 6) * (l1 + 2 * l2 + 2 * l3 + l4))
+        alpha = alpha + (1 / 6) * (l1 + 2 * l2 + 2 * l3 + l4)
+    return -(alpha+beta.T @ X)/tau
 
-        alpha.append(alpha[ob] + (1 / 6) * (l1 + 2 * l2 + 2 * l3 + l4))
-    return alpha, beta
-
-
-RKalpha, RKbeta = [],[]
-
-#Trying to plot inflations
-tenors = [2,5,10]
-for ten in tenors: 
-    runge=RG(funalpha=lambda B:alphamark(beta=B, k=finalK, theta=finalTheta, sigma=finalSigma), funbeta=lambda B:betamark(k=finalK, beta=B, rho_1=rho1), timestep=1/100, wa=0, wb=np.zeros(4), tau=ten)
-    RKalpha.append(runge[0])
-    RKbeta.append(runge[1])
-
-inflationdf={'2':np.array([]),'5':np.array([]), '10':np.array([])}
-
-for i in range(len(tenors)):
-    inflationdf[str(tenors[i])]=np.append(inflationdf[str(tenors[i])],[(RKalpha[i][-1]+RKbeta[i][-1].T @ finalXdata.loc[x])/(-tenors[i]) for x in range(len(finalXdata))])
+inflation={'2':None, '5':None, '10':None}
+tenors=[2,5,10]
+for tau in tenors:
+    inflation[str(tau)]=[RK(funalpha=lambda B:alphamark(beta=B, k=finalK, theta=finalTheta, sigma=finalSigma), \
+                          funbeta=lambda B:betamark(k=finalK, beta=B, rho_1=rho1), \
+                          timestep=1/12, \
+                          wa=0, \
+                          wb=np.zeros(4), \
+                          tau=tau, \
+                          X=finalXdata.iloc[i].values) \
+                          for i in range(len(finalXdata)-1)]
 
 
 #This is not nice i know quick fix, if you know better please correct
-px.line(pd.DataFrame(inflationdf)).write_image('Output/Inflation.png')
+px.line(pd.DataFrame(inflation)).write_image('Output/Inflation.png')
+
+print('===============Q16===============')
 
 
+irp={'2':None, '5':None, '10':None}
+irp['2'] = finalImplYields[0].values-finalImplYields[5].values-np.array(inflation['2'])
+irp['5'] = finalImplYields[2].values-finalImplYields[7].values-np.array(inflation['5'])
+irp['10']= finalImplYields[4].values-finalImplYields[9].values-np.array(inflation['10'])
+
+px.line(pd.DataFrame(irp)).write_image('Output/InflationRiskPremium.png')
 
 
+print('===============Q17===============')
+#Also making a model BEI:
+modelBEI={'2':None, '5':None, '10':None}
+modelBEI['2'] = inflation['2']+irp['2']
+modelBEI['5'] = inflation['5']+irp['5']
+modelBEI['10']= inflation['10']+irp['10']
 
-
-
-
+px.line(pd.DataFrame(modelBEI)).write_image('Output/modelBEI.png')
 print('done')
 
 
