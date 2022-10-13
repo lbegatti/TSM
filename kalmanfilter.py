@@ -215,10 +215,11 @@ class KalmanFilter(NelsonSiegel):
                 # log likelihood for each obs step
                 self.loglike += - 0.5 * (np.log(self.detS)+self.res.T @ self.Sinv @ self.res)
                 
+                
             else:
                 # print('Determinant is not-positive.') #prints to much
                 return 888888
-
+        print(f'                                     loglike: {-self.loglike}',end='\r')
         return -self.loglike
 
     def kalmanFilterFinal(self, pars) -> tuple[Any, ...]:
@@ -237,14 +238,11 @@ class KalmanFilter(NelsonSiegel):
         for o in range(self.obs):
             # prediction step
             self.Xt_1 = self.Ft @ self.Xt + self.Ct
+
             self.Pt_1 = self.Ft @ self.Pt @ self.Ft.T + self.unconVar
             
             # Observed implied yields
             self.yt = np.array(self.observedyield.iloc[o].values)
-
-            # model implied yields
-            self.implyields =  self.A + self.Bmatrix @ self.Xt_1
-            impliedYield_final.append(self.implyields)
 
             # residuals
             self.res = self.yt - self.A - self.Bmatrix @ self.Xt_1
@@ -264,9 +262,14 @@ class KalmanFilter(NelsonSiegel):
 
                 # updated step
                 self.Xt = self.Xt_1 + self.gainMatrix @ self.res
-                self.Pt = np.eye(4) @ self.Pt_1 - self.gainMatrix@ self.Bmatrix @ self.Pt_1
 
                 finalXdata.append(self.Xt)
+
+                # model implied yields
+                self.implyields =  self.A + self.Bmatrix @ self.Xt
+                impliedYield_final.append(self.implyields)
+
+                self.Pt = np.eye(4) @ self.Pt_1 - self.gainMatrix@ self.Bmatrix @ self.Pt_1
 
                 # log likelihood for each obs step
                 self.loglike += - 0.5 * (np.log(self.detS)+self.res.T @ self.Sinv @ self.res)

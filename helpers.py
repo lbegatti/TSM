@@ -59,16 +59,16 @@ def observedImpliedYields(df_observed: pd.DataFrame, df_implied: pd.DataFrame):
 
     fig = go.Figure()
     # add observed plots
-    fig.add_trace(go.Scatter(x=df_observed['Date'], y=df_observed['SVENY02'], name='SVENY02', mode='lines'))
-    fig.add_trace(go.Scatter(x=df_observed['Date'], y=df_observed['SVENY10'], name='SVENY10', mode='lines'))
-    fig.add_trace(go.Scatter(x=df_observed['Date'], y=df_observed['TIPSY02'], name='TIPSY02', mode='lines'))
-    fig.add_trace(go.Scatter(x=df_observed['Date'], y=df_observed['TIPSY10'], name='TIPSY10', mode='lines'))
+    fig.add_trace(go.Scatter(x=df_observed['Date'], y=df_observed['SVENY02'], name='SVENY02', mode='lines', opacity=0.5,))
+    fig.add_trace(go.Scatter(x=df_observed['Date'], y=df_observed['SVENY10'], name='SVENY10', mode='lines', opacity=0.5,))
+    fig.add_trace(go.Scatter(x=df_observed['Date'], y=df_observed['TIPSY02'], name='TIPSY02', mode='lines', opacity=0.5,))
+    fig.add_trace(go.Scatter(x=df_observed['Date'], y=df_observed['TIPSY10'], name='TIPSY10', mode='lines', opacity=0.5,))
 
     # add model implied plots
-    fig.add_trace(go.Scatter(x=df_implied['Date'], y=df_implied['implSVENY02'], name='Implied SVENY02', mode='markers'))
-    fig.add_trace(go.Scatter(x=df_implied['Date'], y=df_implied['implSVENY10'], name='Implied SVENY10', mode='markers'))
-    fig.add_trace(go.Scatter(x=df_implied['Date'], y=df_implied['implTIPSY02'], name='Implied TIPSY02', mode='markers'))
-    fig.add_trace(go.Scatter(x=df_implied['Date'], y=df_implied['implTIPSY10'], name='Implied TIPSY10', mode='markers'))
+    fig.add_trace(go.Scatter(x=df_implied['Date'], y=df_implied['implSVENY02'], name='Implied SVENY02', mode='lines'))
+    fig.add_trace(go.Scatter(x=df_implied['Date'], y=df_implied['implSVENY10'], name='Implied SVENY10', mode='lines'))
+    fig.add_trace(go.Scatter(x=df_implied['Date'], y=df_implied['implTIPSY02'], name='Implied TIPSY02', mode='lines'))
+    fig.add_trace(go.Scatter(x=df_implied['Date'], y=df_implied['implTIPSY10'], name='Implied TIPSY10', mode='lines'))
 
     fig.update_layout(title='2Y and 10Y observed and model implied nominal and real yields',
                       xaxis_title='Date',

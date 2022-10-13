@@ -17,7 +17,7 @@ finalImplYields, finalK, finalTheta, finalSigma, finalXdata = kf.kalmanFilterFin
 filteredStateVariable(finalXdata).write_image('Output/FilteredStateVariables.png')
 
 print('===============Q13===============')
-rmse = RMSE(observedYield=yieldNR[1::], modelYield=finalImplYields[1::], cols=len(yieldNR.columns))
+rmse = RMSE(observedYield=yieldNR[0:211:], modelYield=finalImplYields[1:212:], cols=len(yieldNR.columns))
 print(rmse)
 
 # add the date timestamp for plotting.
@@ -57,5 +57,4 @@ irp = IRP(df_implyields=finalImplYields, df_infl=infl)
 modelBEI = impliedBEI(df_infl=infl, df_irp=irp)
 
 print('===============Q17===============')
-
 logger.info('Assignment completed.')

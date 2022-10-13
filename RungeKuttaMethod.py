@@ -14,7 +14,7 @@ def betamark(k, beta, rho_1):
 
     """ Second ODE to solve to obtain A and B for affine models. """
 
-    return -rho_1 + k.T @ beta
+    return -rho_1 - k.T @ beta
 
 
 def RK(funalpha, funbeta, timestep, wa, wb, tau, X):

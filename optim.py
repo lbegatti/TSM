@@ -21,8 +21,16 @@ somepars = np.array([0.0030, 0, 0.0, 0.0,
                      0.0, 0.0, 0.0, 0.5730,  # KP
                      0.0, 0.0, 0.0, 0.0,  # thetaP
                      0.0154, 0.0117, 0.0154, 0.0117,  # sigma
-                     0.2244, 0.28244, 0.007
+                     0.2244, 0.28244, 0.0009
                      ])
+
+jacobpars = np.array([2.2, 0.3, -0.4, 0.5,
+                      -1.0, 0.7, 0.8, 0.4,
+                      -0.5, 0.2 , 2.2, 1.3,
+                      -3.0, 0.5, -1.5, 2.5, #KP
+                      0.02, 0.02, 0.001, 0.001, #Theta
+                      0.001, 0.001, 0.001, 0.001,
+                      0.5, 0.5, 0.01])
 
 # Q11 - Kalman filter
 print('===============Q11===============')
@@ -33,7 +41,9 @@ yieldNR = nominal_yields_2_10y_eom.merge(real_yields_2_10y_eom, on='Date').drop(
 kf = KalmanFilter(observedyield=yieldNR, obs=len(yieldNR), timestep=1 / 12)
 
 # KF with some initial values
+afnsresults = kf.kalmanfilter(pars=afnspars)
 someresults = kf.kalmanfilter(pars=somepars)
+jacobresults = kf.kalmanfilter(pars=jacobpars)
 
 # Finding nice seeds that fulfill pos eigen values and pos det(S):
 nice_seeds = {'i': [0], 'initialpars': [somepars], 'initialloglike': [someresults], 'optpars': [],
@@ -47,10 +57,10 @@ def optimizationMLE():
         logger.info("Final parameters already exist, so no need to optimize!")
     else:
         i = 1
-        while len(nice_seeds['i']) < 2:
+        while len(nice_seeds['i']) < 1:
             logger.info('Finding nice seeds...\n')
             np.random.seed(i)
-            initialpars = afnspars + np.append(np.random.uniform(-0.1, 0.1, 26), 0)  # adding jiggle
+            initialpars = np.append(np.random.randn(-0.1, 0.1, 26), 0.01)  # adding jiggle
             loglikefind = kf.kalmanfilter(pars=initialpars)
             if loglikefind < 888888:
                 print(f'i: {i}, found: {len(nice_seeds["i"])}, loglike: {loglikefind}')
@@ -65,7 +75,7 @@ def optimizationMLE():
             logger.info(f'Optimizing seed {j} out of {len(nice_seeds[list(nice_seeds.keys())[0]]) - 1}...\n')
             MLEstimation = optimize.minimize(fun=lambda params: kf.kalmanfilter(pars=params), x0=np.array(pars),
                                              method='nelder-mead',
-                                             options={'maxiter': 2000, 'maxfev': 10800, 'adaptive': True})
+                                             options={'maxiter': 20000, 'maxfev': 10800, 'adaptive': True})
             nice_seeds['optpars'].append(MLEstimation.x)
             logger.info(f'optloglike after {MLEstimation.nit} iterations:{MLEstimation.fun}')
             nice_seeds['optloglike'].append(MLEstimation.fun)
