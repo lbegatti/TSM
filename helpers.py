@@ -83,9 +83,9 @@ def IRP(df_implyields: pd.DataFrame, df_infl: pd.DataFrame) -> pd.DataFrame:
 
     inflRiskPrem = pd.DataFrame()
     inflRiskPrem['Date'] = df_implyields['Date']
-    inflRiskPrem['2Y'] = df_implyields['implSVENY02'] - df_implyields['implTIPSY02'] - df_infl['2Y Impl_Infl']
-    inflRiskPrem['5Y'] = df_implyields['implSVENY05'] - df_implyields['implTIPSY05'] - df_infl['5Y Impl_Infl']
-    inflRiskPrem['10Y'] = df_implyields['implSVENY10'] - df_implyields['implTIPSY10'] - df_infl['10Y Impl_Infl']
+    inflRiskPrem['2Y'] = df_implyields['implSVENY02'] - df_implyields['implTIPSY02'] - df_infl['2Y_Impl_Infl']
+    inflRiskPrem['5Y'] = df_implyields['implSVENY05'] - df_implyields['implTIPSY05'] - df_infl['5Y_Impl_Infl']
+    inflRiskPrem['10Y'] = df_implyields['implSVENY10'] - df_implyields['implTIPSY10'] - df_infl['10Y_Impl_Infl']
 
     plotCurve(df=inflRiskPrem, columns=['2Y', '5Y', '10Y'], curvetype='IRP',
               FD=False).write_image('Output/InflationRiskPremium.png')
@@ -99,9 +99,9 @@ def impliedBEI(df_infl: pd.DataFrame, df_irp: pd.DataFrame) -> pd.DataFrame:
 
     modelBEI = pd.DataFrame()
     modelBEI['Date'] = df_infl['Date']
-    modelBEI['2Y'] = df_infl['2Y Impl_Infl'] + df_irp['2Y']
-    modelBEI['5Y'] = df_infl['5Y Impl_Infl'] + df_irp['5Y']
-    modelBEI['10Y'] = df_infl['10Y Impl_Infl'] + df_irp['10Y']
+    modelBEI['2Y'] = df_infl['2Y_Impl_Infl'] + df_irp['2Y']
+    modelBEI['5Y'] = df_infl['5Y_Impl_Infl'] + df_irp['5Y']
+    modelBEI['10Y'] = df_infl['10Y_Impl_Infl'] + df_irp['10Y']
     plotCurve(df=modelBEI, columns=['2Y', '5Y', '10Y'], curvetype='Implied BEI rates', FD=False).write_image(
         'Output/modelBEI.png')
 

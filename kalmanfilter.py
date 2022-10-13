@@ -1,9 +1,10 @@
-from typing import Any
+from typing import Any, Union
 
 import numpy as np
 import pandas as pd
-import sys
+from pandas import DataFrame
 from scipy.linalg import expm
+
 from nelsonSiegel import NelsonSiegel
 
 
@@ -63,14 +64,18 @@ class KalmanFilter(NelsonSiegel):
         self.kappa13 = None
         self.kappa12 = None
         self.kappa11 = None
-        # self.para = parameters
         self.obs = obs
         self.dt = timestep
         self.loglike = 0
         self.observedyield = observedyield
 
     def paramToOptimize(self, params):
+
+        # reset the likelihood to zero after every iteration.
+        self.loglike = 0
+
         para = params
+
         # initialize all the parameter values
         self.kappa11 = para[0]
         self.kappa12 = para[1]
@@ -119,16 +124,18 @@ class KalmanFilter(NelsonSiegel):
 
     def checkEigen(self):
         self.eigvalK, self.eigvecK = np.linalg.eig(self.K)
-        # self.eigvalK = self.eigvalK.real
-        # self.eigvecK = self.eigvecK.real
 
-        if all(self.eigvalK.real > 0):  # and all(np.isreal(self.eigvalK))
+        if all(self.eigvalK.real > 0):
+
             return True
+
         else:
+
             # print('At least one eigenvalue is negative or complex!') #prints too much
             return False
 
     def calcAB(self):
+
         nelsonSiegelN = NelsonSiegel(Lambda=self.lambda_N, sigmaS=self.sigma_NS, sigmaL=self.sigma_NL,
                                      Xt=self.Theta[0:2],  # only the two first
                                      tauList=[2, 3, 5, 7, 10])
@@ -145,37 +152,34 @@ class KalmanFilter(NelsonSiegel):
     def condUncCov(self):
 
         # Cond and uncond covariance matrix
+
         ## S-overline matrix
         self.Sbar = (np.linalg.inv(self.eigvecK) @ self.Sigma @ self.Sigma.T @ np.linalg.inv(self.eigvecK).T).real  #
-        # self.Sbar = self.Sbar.real
 
         ## Step 2: V-overline
         self.Vbar = np.zeros((4, 4), dtype=complex)
         for i in range(0, len(self.Sbar)):
             for j in range(0, len(self.Sbar)):
                 self.Vbar[i, j] = (self.Sbar[i, j] / (self.eigvalK[i] + self.eigvalK[j])) * (
-                            1 - np.exp(-(self.eigvalK[i] + self.eigvalK[j]) * self.dt))
+                        1 - np.exp(-(self.eigvalK[i] + self.eigvalK[j]) * self.dt))
 
         self.VbarUnc = np.zeros((4, 4), dtype=complex)
         for i in range(0, len(self.Sbar)):
             for j in range(0, len(self.Sbar)):
                 self.VbarUnc[i, j] = (self.Sbar[i, j] / (self.eigvalK[i] + self.eigvalK[j]))
 
-        # take the real part only
-        # self.Vbar = self.Vbar
-        # self.VbarUnc = self.VbarUnc
-
         self.condVar = (self.eigvecK @ self.Vbar @ self.eigvecK.T).real  # QVbar_dtQT
         self.unconVar = (self.eigvecK @ self.VbarUnc @ self.eigvecK.T).real  # QVbar_infQT
         self.uncMean = self.Theta
 
     def calcFC(self):
+
         self.Ft = expm(-self.K * self.dt)
         self.Ct = (np.eye(4) - self.Ft) @ self.Theta
 
     def kalmanfilter(self, pars):
+
         self.paramToOptimize(params=pars)
-        self.loglike = 0
         if not self.checkEigen():
             return 999999
         self.calcAB()
@@ -185,46 +189,47 @@ class KalmanFilter(NelsonSiegel):
         self.Xt = self.Theta
         self.Pt = self.unconVar
         for o in range(self.obs):
-            # prediction step
+
+            # Prediction step
             self.Xt_1 = self.Ft @ self.Xt + self.Ct
             self.Pt_1 = self.Ft @ self.Pt @ self.Ft.T + self.condVar
-            
+
             # Observed implied yields
             self.yt = np.array(self.observedyield.iloc[o].values)
 
-            # residuals
+            # Residuals
             self.res = self.yt - self.A - self.Bmatrix @ self.Xt_1
 
-            # cov matrix prefit residuals
+            # Cov matrix prefit residuals
             self.S = self.H + self.Bmatrix @ self.Pt_1 @ self.Bmatrix.T
 
-            # det of cov matrix prefit residuals
+            # Det of cov matrix prefit residuals
             self.detS = np.linalg.det(self.S)
 
             if self.detS > 0:
-                # inverse of cov matrix
+                # Inverse of cov matrix
                 self.Sinv = np.linalg.inv(self.S)
 
-                # kalman gain matrix
-                self.gainMatrix = self.Pt_1 @ self.Bmatrix.T@self.Sinv
+                # Kalman gain matrix
+                self.gainMatrix = self.Pt_1 @ self.Bmatrix.T @ self.Sinv
 
-                # updated step
+                # Updated step
                 self.Xt = self.Xt_1 + self.gainMatrix @ self.res
                 self.Pt = self.Pt_1 - self.gainMatrix @ self.Bmatrix @ self.Pt_1
 
-                # log likelihood for each obs step
-                self.loglike += - 0.5 * (np.log(self.detS)+self.res.T @ self.Sinv @ self.res)
-                
-                
+                # Log likelihood for each obs step
+                self.loglike += - 0.5 * (np.log(self.detS) + self.res.T @ self.Sinv @ self.res)
+
             else:
+
                 # print('Determinant is not-positive.') #prints to much
                 return 888888
-        print(f'                                     loglike: {-self.loglike}',end='\r')
+        print(f'                                     loglike: {-self.loglike}', end='\r')
         return -self.loglike
 
-    def kalmanFilterFinal(self, pars) -> tuple[Any, ...]:
+    def kalmanFilterFinal(self, pars) -> Union[int, tuple[DataFrame, Any, Any, Any, DataFrame]]:
+
         self.paramToOptimize(params=pars)
-        self.loglike = 0
         self.checkEigen()
         self.calcAB()
         self.condUncCov()
@@ -234,48 +239,48 @@ class KalmanFilter(NelsonSiegel):
         self.Pt = self.unconVar
         impliedYield_final = []
         finalXdata = [self.Xt]
-        
-        for o in range(self.obs):
-            # prediction step
-            self.Xt_1 = self.Ft @ self.Xt + self.Ct
 
-            self.Pt_1 = self.Ft @ self.Pt @ self.Ft.T + self.unconVar
-            
+        for o in range(self.obs):
+
+            # Prediction step
+            self.Xt_1 = self.Ft @ self.Xt + self.Ct
+            self.Pt_1 = self.Ft @ self.Pt @ self.Ft.T + self.condVar
+
             # Observed implied yields
             self.yt = np.array(self.observedyield.iloc[o].values)
 
-            # residuals
+            # Residuals
             self.res = self.yt - self.A - self.Bmatrix @ self.Xt_1
 
-            # cov matrix prefit residuals
+            # Cov matrix prefit residuals
             self.S = self.H + self.Bmatrix @ self.Pt_1 @ self.Bmatrix.T
 
-            # det of cov matrix prefit residuals
+            # Det of cov matrix prefit residuals
             self.detS = np.linalg.det(self.S)
 
             if self.detS > 0:
-                # inverse of cov matrix
+
+                # Inverse of cov matrix
                 self.Sinv = np.linalg.inv(self.S)
 
-                # kalman gain matrix
-                self.gainMatrix = self.Pt_1 @ self.Bmatrix.T@self.Sinv
+                # Kalman gain matrix
+                self.gainMatrix = self.Pt_1 @ self.Bmatrix.T @ self.Sinv
 
-                # updated step
+                # Updated step
                 self.Xt = self.Xt_1 + self.gainMatrix @ self.res
-
+                self.Pt = np.eye(4) @ self.Pt_1 - self.gainMatrix @ self.Bmatrix @ self.Pt_1
                 finalXdata.append(self.Xt)
 
-                # model implied yields
-                self.implyields =  self.A + self.Bmatrix @ self.Xt
+                ## Model implied yields
+                self.implyields = self.A + self.Bmatrix @ self.Xt
                 impliedYield_final.append(self.implyields)
 
-                self.Pt = np.eye(4) @ self.Pt_1 - self.gainMatrix@ self.Bmatrix @ self.Pt_1
-
                 # log likelihood for each obs step
-                self.loglike += - 0.5 * (np.log(self.detS)+self.res.T @ self.Sinv @ self.res)
-                
+
+                self.loglike += - 0.5 * (np.log(self.detS) + self.res.T @ self.Sinv @ self.res)
 
             else:
+
                 # print('Determinant is not-positive.') #prints to much
                 return 888888
 

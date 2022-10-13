@@ -26,9 +26,9 @@ somepars = np.array([0.0030, 0, 0.0, 0.0,
 
 jacobpars = np.array([2.2, 0.3, -0.4, 0.5,
                       -1.0, 0.7, 0.8, 0.4,
-                      -0.5, 0.2 , 2.2, 1.3,
-                      -3.0, 0.5, -1.5, 2.5, #KP
-                      0.02, 0.02, 0.001, 0.001, #Theta
+                      -0.5, 0.2, 2.2, 1.3,
+                      -3.0, 0.5, -1.5, 2.5,  # KP
+                      0.02, 0.02, 0.001, 0.001,  # Theta
                       0.001, 0.001, 0.001, 0.001,
                       0.5, 0.5, 0.01])
 
@@ -91,7 +91,6 @@ def optimizationMLE():
 
 
 def saveOptParams():
-
     """ Method to store the optimal set of parameters obtained via an iterative MLE process. """
 
     if exists('Output/final_opt_params.txt'):

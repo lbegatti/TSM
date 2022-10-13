@@ -1,5 +1,3 @@
-# Packages
-
 # methods - helpers
 from optim import *
 from RungeKuttaMethod import *
@@ -7,7 +5,6 @@ from preliminaryAnalysis import *
 
 # ML estimation
 optimizationMLE()
-
 print('===============Q12===============')
 opt_params = saveOptParams()
 print(opt_params)
@@ -17,7 +14,7 @@ finalImplYields, finalK, finalTheta, finalSigma, finalXdata = kf.kalmanFilterFin
 filteredStateVariable(finalXdata).write_image('Output/FilteredStateVariables.png')
 
 print('===============Q13===============')
-rmse = RMSE(observedYield=yieldNR[0:211:], modelYield=finalImplYields[1:212:], cols=len(yieldNR.columns))
+rmse = RMSE(observedYield=yieldNR, modelYield=finalImplYields, cols=len(yieldNR.columns))
 print(rmse)
 
 # add the date timestamp for plotting.
@@ -35,7 +32,7 @@ print('===============Q15===============')
 inflation = {}
 tenors = [2, 5, 10]
 for tau in tenors:
-    inflation[f'{str(tau)}Y Impl_Infl'] = [
+    inflation[f'{str(tau)}Y_Impl_Infl'] = [
         RK(funalpha=lambda B: alphamark(beta=B, k=finalK, theta=finalTheta, sigma=finalSigma),
            funbeta=lambda B: betamark(k=finalK, beta=B, rho_1=rho1),
            timestep=1 / 12,
@@ -47,7 +44,7 @@ for tau in tenors:
 
 infl = pd.DataFrame(inflation)
 infl['Date'] = nominal_yields_2_10y_eom['Date']
-plotCurve(df=infl, columns=['2Y Impl_Infl', '5Y Impl_Infl', '10Y Impl_Infl'], curvetype='Inflation',
+plotCurve(df=infl, columns=['2Y_Impl_Infl', '5Y_Impl_Infl', '10Y_Impl_Infl'], curvetype='Inflation',
           FD=False).write_image('Output/Inflation.png')
 
 print('===============Q16===============')
